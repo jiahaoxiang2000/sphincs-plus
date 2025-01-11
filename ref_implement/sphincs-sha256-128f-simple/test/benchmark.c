@@ -13,59 +13,66 @@
 #define SPX_MLEN 32
 #define NTESTS 10
 
-static int cmp_llu(const void *a, const void*b)
+static int cmp_llu(const void *a, const void *b)
 {
-  if(*(unsigned long long *)a < *(unsigned long long *)b) return -1;
-  if(*(unsigned long long *)a > *(unsigned long long *)b) return 1;
-  return 0;
+    if (*(unsigned long long *)a < *(unsigned long long *)b)
+        return -1;
+    if (*(unsigned long long *)a > *(unsigned long long *)b)
+        return 1;
+    return 0;
 }
 
 static unsigned long long median(unsigned long long *l, size_t llen)
 {
-  qsort(l,llen,sizeof(unsigned long long),cmp_llu);
+    qsort(l, llen, sizeof(unsigned long long), cmp_llu);
 
-  if(llen%2) return l[llen/2];
-  else return (l[llen/2-1]+l[llen/2])/2;
+    if (llen % 2)
+        return l[llen / 2];
+    else
+        return (l[llen / 2 - 1] + l[llen / 2]) / 2;
 }
 
 static void delta(unsigned long long *l, size_t llen)
 {
     unsigned int i;
-    for(i = 0; i < llen - 1; i++) {
-        l[i] = l[i+1] - l[i];
+    for (i = 0; i < llen - 1; i++)
+    {
+        l[i] = l[i + 1] - l[i];
     }
 }
 
 static unsigned long long cpucycles(void)
 {
-  unsigned long long result;
-  __asm volatile(".byte 15;.byte 49;shlq $32,%%rdx;orq %%rdx,%%rax"
-    : "=a" (result) ::  "%rdx");
-  return result;
+    struct timespec time;
+    clock_gettime(CLOCK_MONOTONIC, &time);
+    return (unsigned long long)(time.tv_sec * 1e9 + time.tv_nsec);
 }
 
-static void printfcomma (unsigned long long n)
+static void printfcomma(unsigned long long n)
 {
-    if (n < 1000) {
+    if (n < 1000)
+    {
         printf("%llu", n);
         return;
     }
     printfcomma(n / 1000);
-    printf (",%03llu", n % 1000);
+    printf(",%03llu", n % 1000);
 }
 
-static void printfalignedcomma (unsigned long long n, int len)
+static void printfalignedcomma(unsigned long long n, int len)
 {
     unsigned long long ncopy = n;
     int i = 0;
 
-    while (ncopy > 9) {
+    while (ncopy > 9)
+    {
         len -= 1;
         ncopy /= 10;
-        i += 1;  // to account for commas
+        i += 1; // to account for commas
     }
-    i = i/3 - 1;  // to account for commas
-    for (; i < len; i++) {
+    i = i / 3 - 1; // to account for commas
+    for (; i < len; i++)
+    {
         printf(" ");
     }
     printfcomma(n);
@@ -81,20 +88,21 @@ static void display_result(double result, unsigned long long *l, size_t llen, un
     printf("avg. %11.2lf us (%2.2lf sec); median ", result, result / 1e6);
     printfalignedcomma(med, 12);
     printf(" cycles,  %5llux: ", mul);
-    printfalignedcomma(mul*med, 12);
+    printfalignedcomma(mul * med, 12);
     printf(" cycles\n");
 }
 
-#define MEASURE(TEXT, MUL, FNCALL)\
-    printf(TEXT);\
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);\
-    for(i = 0; i < NTESTS; i++) {\
-        t[i] = cpucycles();\
-        FNCALL;\
-    }\
-    t[NTESTS] = cpucycles();\
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);\
-    result = (stop.tv_sec - start.tv_sec) * 1e6 + (stop.tv_nsec - start.tv_nsec) / 1e3;\
+#define MEASURE(TEXT, MUL, FNCALL)                                                      \
+    printf(TEXT);                                                                       \
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);                                    \
+    for (i = 0; i < NTESTS; i++)                                                        \
+    {                                                                                   \
+        t[i] = cpucycles();                                                             \
+        FNCALL;                                                                         \
+    }                                                                                   \
+    t[NTESTS] = cpucycles();                                                            \
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);                                     \
+    result = (stop.tv_sec - start.tv_sec) * 1e6 + (stop.tv_nsec - start.tv_nsec) / 1e3; \
     display_result(result, t, NTESTS, MUL);
 
 int main()
@@ -119,7 +127,7 @@ int main()
 
     unsigned long long smlen;
     unsigned long long mlen;
-    unsigned long long t[NTESTS+1];
+    unsigned long long t[NTESTS + 1];
     struct timespec start, stop;
     double result;
     int i;
@@ -134,11 +142,11 @@ int main()
     printf("Running %d iterations.\n", NTESTS);
 
     MEASURE("Generating keypair.. ", 1, crypto_sign_keypair(pk, sk));
-    MEASURE("  - WOTS pk gen..    ", (1 << SPX_TREE_HEIGHT), wots_gen_pk(wots_pk, sk, pk, (uint32_t *) addr));
+    MEASURE("  - WOTS pk gen..    ", (1 << SPX_TREE_HEIGHT), wots_gen_pk(wots_pk, sk, pk, (uint32_t *)addr));
     MEASURE("Signing..            ", 1, crypto_sign(sm, &smlen, m, SPX_MLEN, sk));
-    MEASURE("  - FORS signing..   ", 1, fors_sign(fors_sig, fors_pk, fors_m, sk, pk, (uint32_t *) addr));
-    MEASURE("  - WOTS signing..   ", SPX_D, wots_sign(wots_sig, wots_m, sk, pk, (uint32_t *) addr));
-    MEASURE("  - WOTS pk gen..    ", SPX_D * (1 << SPX_TREE_HEIGHT), wots_gen_pk(wots_pk, sk, pk, (uint32_t *) addr));
+    MEASURE("  - FORS signing..   ", 1, fors_sign(fors_sig, fors_pk, fors_m, sk, pk, (uint32_t *)addr));
+    MEASURE("  - WOTS signing..   ", SPX_D, wots_sign(wots_sig, wots_m, sk, pk, (uint32_t *)addr));
+    MEASURE("  - WOTS pk gen..    ", SPX_D * (1 << SPX_TREE_HEIGHT), wots_gen_pk(wots_pk, sk, pk, (uint32_t *)addr));
     MEASURE("Verifying..          ", 1, crypto_sign_open(mout, &mlen, sm, smlen, pk));
 
     printf("Signature size: %d (%.2f KiB)\n", SPX_BYTES, SPX_BYTES / 1024.0);
