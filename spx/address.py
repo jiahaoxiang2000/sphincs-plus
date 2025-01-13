@@ -2,13 +2,13 @@
 from enum import Enum
 
 class AddrType(Enum):
-    WOTS = 0
-    WOTSPK = 1
-    HASHTREE = 2
+    WOTS_HASH = 0
+    WOTS_PK = 1
+    TREE = 2
     FORS_TREE = 3
     FORS_ROOTS = 4
-    WOTS_KEY_GENERATE = 5
-    FORS_KEY_GENERATE = 6
+    WOTS_PRF = 5
+    FORS_PRF = 6
 
 class Address:
     def __init__(self):
@@ -19,7 +19,7 @@ class Address:
 class WOTSAddress(Address):
     def __init__(self):
         super().__init__()
-        self.type = AddrType.WOTS
+        self.type = AddrType.WOTS_HASH
         self.key_pair = bytearray(4)
         self.chain = bytearray(4)
         self.hash = bytearray(4)
@@ -27,13 +27,13 @@ class WOTSAddress(Address):
 class WOTSPKAddress(Address):
     def __init__(self):
         super().__init__()
-        self.type = AddrType.WOTSPK
+        self.type = AddrType.WOTS_PK
         self.key_pair = bytearray(4)
 
-class HashTreeAddress(Address):
+class TreeAddress(Address):
     def __init__(self):
         super().__init__()
-        self.type = AddrType.HASHTREE
+        self.type = AddrType.TREE
         self.tree_index = bytearray(4)
         self.tree_height = bytearray(4)
 
@@ -51,18 +51,18 @@ class FORSRootsAddress(Address):
         self.type = AddrType.FORS_ROOTS
         self.key_pair = bytearray(4)
         
-class WOTSKeyGenerateAddress(Address):
+class WOTSPrfAddress(Address):
     def __init__(self):
         super().__init__()
-        self.type = AddrType.WOTS_KEY_GENERATE
+        self.type = AddrType.WOTS_PRF
         self.key_pair = bytearray(4)
         self.chain = bytearray(4)
         self.hash = bytearray(4)
         
-class FORSKeyGenerateAddress(Address):
+class FORSPrfAddress(Address):
     def __init__(self):
         super().__init__()
-        self.type = AddrType.FORS_KEY_GENERATE
+        self.type = AddrType.FORS_PRF
         self.key_pair = bytearray(4)
         self.tree_index = bytearray(4)
         self.tree_height = bytearray(4)
