@@ -1,6 +1,20 @@
 # from spx.wots import SPX_N
 # from Crypto.Hash import SHA256
+from spx.address import WOTSAddress
+
+
 SPX_N = 16  # Hash output length in bytes
+# Parameters
+SPX_N = 16  # Hash output length in bytes
+SPX_WOTS_W = 16  # Winternitz parameter
+SPX_WOTS_LOGW = 4  # log2(SPX_WOTS_W)
+SPX_WOTS_LEN1 = 64  # Length of message part
+SPX_WOTS_LEN2 = 3  # Length of checksum part
+SPX_WOTS_LEN = SPX_WOTS_LEN1 + SPX_WOTS_LEN2  # Total length
+SPX_WOTS_BYTES = SPX_WOTS_LEN * SPX_N
+SPX_WOTS_PK_BYTES = SPX_WOTS_BYTES
+SPX_SHA256_OUTPUT_BYTES = 32
+SPX_SHA256_ADDR_BYTES = 22
 
 state_seeded = bytearray(40)  # 32 bytes hash state + 8 bytes counter
 
@@ -195,9 +209,9 @@ def crypto_hashblocks_sha256(
 def seed_state(pub_seed: bytes) -> None:
     # Initialize state with IV
     state_seeded[0:32] = IV_256
-    count = state_seeded[32:40]
-    # transform the counter to integer
-    count = int.from_bytes(count, byteorder="big")
+    # the seed_state counter is stored in the last 8 bytes of the state, now always 64
+    count = bytes([0, 0, 0, 0, 0, 0, 0, 64])
+    state_seeded[32:40] = count
 
     # Prepare input block
     block = bytearray(64)  # SPX_SHA256_BLOCK_BYTES
@@ -206,5 +220,77 @@ def seed_state(pub_seed: bytes) -> None:
 
     # Update state with block
     crypto_hashblocks_sha256(state_seeded, block, 64)
-    count += 64
-    state_seeded[32:40] = count.to_bytes(8, byteorder="big")
+
+
+def sha256_inc_finalize(
+    out: bytearray, state: bytearray, in_data: bytes, inlen: int
+) -> None:
+    padded = bytearray(128)
+    bytes_count = int.from_bytes(state[32:40], byteorder="big") + inlen
+
+    crypto_hashblocks_sha256(state, in_data, inlen)
+    # if the in_data inlen not the times of 64, then the last block need to padding
+    inlen &= 63
+    last_block = in_data[-inlen:]
+
+    for i in range(inlen):
+        padded[i] = last_block[i]
+    padded[inlen] = 0x80
+
+    if inlen < 56:
+        for i in range(inlen + 1, 56):
+            padded[i] = 0
+        padded[56] = (bytes_count >> 53) & 0xFF
+        padded[57] = (bytes_count >> 45) & 0xFF
+        padded[58] = (bytes_count >> 37) & 0xFF
+        padded[59] = (bytes_count >> 29) & 0xFF
+        padded[60] = (bytes_count >> 21) & 0xFF
+        padded[61] = (bytes_count >> 13) & 0xFF
+        padded[62] = (bytes_count >> 5) & 0xFF
+        padded[63] = (bytes_count << 3) & 0xFF
+        crypto_hashblocks_sha256(state, padded, 64)
+    else:
+        for i in range(inlen + 1, 120):
+            padded[i] = 0
+        padded[120] = (bytes_count >> 53) & 0xFF
+        padded[121] = (bytes_count >> 45) & 0xFF
+        padded[122] = (bytes_count >> 37) & 0xFF
+        padded[123] = (bytes_count >> 29) & 0xFF
+        padded[124] = (bytes_count >> 21) & 0xFF
+        padded[125] = (bytes_count >> 13) & 0xFF
+        padded[126] = (bytes_count >> 5) & 0xFF
+        padded[127] = (bytes_count << 3) & 0xFF
+        crypto_hashblocks_sha256(state, padded, 128)
+
+    for i in range(32):
+        out[i] = state[i]
+
+
+def thash(
+    out: bytearray, input: bytes, inblocks: int, pub_seed: bytes, addr: WOTSAddress
+) -> None:
+    """
+    T-hash function using SHA256
+    Args:
+        out: output buffer (SPX_N bytes)
+        input: concatenated input blocks
+        inblocks: number of input blocks
+        pub_seed: public seed (not used in simple variant)
+        addr: address structure
+    """
+    buf = bytearray(SPX_SHA256_ADDR_BYTES + inblocks * SPX_N)
+    outbuf = bytearray(SPX_SHA256_OUTPUT_BYTES)
+
+    # Retrieve precomputed state containing pub_seed
+    sha2_state = bytearray(40)
+    sha2_state[:] = state_seeded
+
+    # Copy address and input to buffer
+    buf[:SPX_SHA256_ADDR_BYTES] = addr.to_bytes()[:SPX_SHA256_ADDR_BYTES]
+    buf[SPX_SHA256_ADDR_BYTES : SPX_SHA256_ADDR_BYTES + inblocks * SPX_N] = input
+
+    # Incremental finalize SHA256
+    sha256_inc_finalize(
+        outbuf, sha2_state, buf, SPX_SHA256_ADDR_BYTES + inblocks * SPX_N
+    )
+    out[:] = outbuf[:SPX_N]
