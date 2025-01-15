@@ -43,7 +43,8 @@ static void gen_chain(unsigned char *out, const unsigned char *in,
     memcpy(out, in, SPX_N);
 
     /* Iterate 'steps' calls to the hash function. */
-    for (i = start; i < (start+steps) && i < SPX_WOTS_W; i++) {
+    for (i = start; i < (start + steps) && i < SPX_WOTS_W; i++)
+    {
         set_hash_addr(addr, i);
         thash(out, out, 1, pub_seed, addr);
     }
@@ -63,8 +64,10 @@ static void base_w(unsigned int *output, const int out_len,
     int bits = 0;
     int consumed;
 
-    for (consumed = 0; consumed < out_len; consumed++) {
-        if (bits == 0) {
+    for (consumed = 0; consumed < out_len; consumed++)
+    {
+        if (bits == 0)
+        {
             total = input[in];
             in++;
             bits += 8;
@@ -84,7 +87,8 @@ static void wots_checksum(unsigned int *csum_base_w,
     unsigned int i;
 
     /* Compute checksum. */
-    for (i = 0; i < SPX_WOTS_LEN1; i++) {
+    for (i = 0; i < SPX_WOTS_LEN1; i++)
+    {
         csum += SPX_WOTS_W - 1 - msg_base_w[i];
     }
 
@@ -115,10 +119,11 @@ void wots_gen_pk(unsigned char *pk, const unsigned char *sk_seed,
 {
     uint32_t i;
 
-    for (i = 0; i < SPX_WOTS_LEN; i++) {
+    for (i = 0; i < SPX_WOTS_LEN; i++)
+    {
         set_chain_addr(addr, i);
-        wots_gen_sk(pk + i*SPX_N, sk_seed, addr);
-        gen_chain(pk + i*SPX_N, pk + i*SPX_N,
+        wots_gen_sk(pk + i * SPX_N, sk_seed, addr);
+        gen_chain(pk + i * SPX_N, pk + i * SPX_N,
                   0, SPX_WOTS_W - 1, pub_seed, addr);
     }
 }
@@ -135,10 +140,11 @@ void wots_sign(unsigned char *sig, const unsigned char *msg,
 
     chain_lengths(lengths, msg);
 
-    for (i = 0; i < SPX_WOTS_LEN; i++) {
+    for (i = 0; i < SPX_WOTS_LEN; i++)
+    {
         set_chain_addr(addr, i);
-        wots_gen_sk(sig + i*SPX_N, sk_seed, addr);
-        gen_chain(sig + i*SPX_N, sig + i*SPX_N, 0, lengths[i], pub_seed, addr);
+        wots_gen_sk(sig + i * SPX_N, sk_seed, addr);
+        gen_chain(sig + i * SPX_N, sig + i * SPX_N, 0, lengths[i], pub_seed, addr);
     }
 }
 
@@ -156,9 +162,10 @@ void wots_pk_from_sig(unsigned char *pk,
 
     chain_lengths(lengths, msg);
 
-    for (i = 0; i < SPX_WOTS_LEN; i++) {
+    for (i = 0; i < SPX_WOTS_LEN; i++)
+    {
         set_chain_addr(addr, i);
-        gen_chain(pk + i*SPX_N, sig + i*SPX_N,
+        gen_chain(pk + i * SPX_N, sig + i * SPX_N,
                   lengths[i], SPX_WOTS_W - 1 - lengths[i], pub_seed, addr);
     }
 }
