@@ -19,20 +19,38 @@ int main()
     unsigned char m[SPX_N];
     uint32_t addr[8] = {0};
 
-    randombytes(seed, SPX_N);
-    randombytes(pub_seed, SPX_N);
-    randombytes(m, SPX_N);
-    randombytes((unsigned char *)addr, 8 * sizeof(uint32_t));
+    // randombytes(seed, SPX_N);
+    // randombytes(pub_seed, SPX_N);
+    // randombytes(m, SPX_N);
+    // randombytes((unsigned char *)addr, 8 * sizeof(uint32_t));
 
     printf("Testing WOTS signature and PK derivation.. ");
+    for (size_t i = 0; i < 8; i++)
+    {
+        addr[i] = 0;
+    }
+
+    for (size_t i = 0; i < 16; i++)
+    {
+        pub_seed[i] = i;
+        seed[i] = i;
+        m[i] = i;
+    }
 
     initialize_hash_function(pub_seed, seed);
 
     wots_gen_pk(pk1, seed, pub_seed, addr);
+
+    printf("pk1: ");
+    for (size_t i = 0; i < SPX_WOTS_PK_BYTES; i++)
+        printf("%02x", pk1[i]);
+    printf("\n");
+
     wots_sign(sig, m, seed, pub_seed, addr);
     wots_pk_from_sig(pk2, sig, m, pub_seed, addr);
 
-    if (memcmp(pk1, pk2, SPX_WOTS_PK_BYTES)) {
+    if (memcmp(pk1, pk2, SPX_WOTS_PK_BYTES))
+    {
         printf("failed!\n");
         return -1;
     }
