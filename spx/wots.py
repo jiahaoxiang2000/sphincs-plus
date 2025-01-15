@@ -1,7 +1,8 @@
 import hashlib
 from typing import List, Tuple
 
-from spx.utils import seed_state
+from spx.utils import thash
+
 
 from .address import WOTSAddress
 
@@ -15,32 +16,13 @@ SPX_WOTS_LEN = SPX_WOTS_LEN1 + SPX_WOTS_LEN2  # Total length
 SPX_WOTS_BYTES = SPX_WOTS_LEN * SPX_N
 SPX_WOTS_PK_BYTES = SPX_WOTS_BYTES
 SPX_SHA256_OUTPUT_BYTES = 32
+SPX_SHA256_ADDR_BYTES = 22
 
 
 def prf_addr(key: bytes, addr: WOTSAddress) -> bytes:
     """PRF function using SHA256"""
-    addr_bytes = addr.to_bytes()
+    addr_bytes = addr.to_bytes()[:SPX_SHA256_ADDR_BYTES]
     return hashlib.sha256(key + addr_bytes).digest()[:SPX_N]
-
-
-def thash(input: bytes, pub_seed: bytes, addr: WOTSAddress) -> None:
-    """
-    T-hash function using SHA256
-    Args:
-        out: output buffer (SPX_N bytes)
-        in_blocks: concatenated input blocks
-        inblocks: number of input blocks
-        pub_seed: public seed (not used in simple variant)
-        addr: address structure
-    """
-    buf = addr + input
-    # TODO: need to global init state_seeded
-    global state_seeded
-    seed_state(pub_seed)
-    out = hashlib.sha256(buf).digest()[:SPX_N]
-    # Generate hash
-
-    return out
 
 
 def gen_chain(
@@ -51,15 +33,16 @@ def gen_chain(
 
     for i in range(start, min(start + steps, SPX_WOTS_W)):
         addr.hash = i.to_bytes(4, "big")
-        out = thash(out, pub_seed, addr)
+        thash(out, out, 1, pub_seed, addr)
 
     return out
 
 
 def wots_gen_sk(sk_seed: bytes, addr: WOTSAddress) -> bytes:
     """Generate WOTS secret key element"""
+    # no problem with this
     addr.hash = bytes(4)  # Zero the hash address
-    return prf_addr(sk_seed, addr)
+    return bytearray(prf_addr(sk_seed, addr))
 
 
 def base_w(msg: bytes, out_len: int) -> List[int]:
@@ -80,24 +63,6 @@ def base_w(msg: bytes, out_len: int) -> List[int]:
     return output
 
 
-def chain_lengths(msg: bytes) -> List[int]:
-    """Calculate chain lengths from message"""
-    lengths = base_w(msg, SPX_WOTS_LEN1)
-
-    # Compute checksum
-    csum = 0
-    for length in lengths:
-        csum += SPX_WOTS_W - 1 - length
-
-    # Make sure expected empty zero bits are the least significant bits
-    csum = csum << ((8 - ((SPX_WOTS_LEN2 * SPX_WOTS_LOGW) % 8)) % 8)
-    csum_bytes = ull_to_bytes(csum, (SPX_WOTS_LEN2 * SPX_WOTS_LOGW + 7) // 8)
-
-    # Convert checksum to base_w
-    lengths.extend(base_w(csum_bytes, SPX_WOTS_LEN2))
-    return lengths
-
-
 def wots_gen_pk(sk_seed: bytes, pub_seed: bytes, addr: WOTSAddress) -> bytes:
     """Generate WOTS public key"""
     pk = bytearray()
@@ -105,6 +70,7 @@ def wots_gen_pk(sk_seed: bytes, pub_seed: bytes, addr: WOTSAddress) -> bytes:
     for i in range(SPX_WOTS_LEN):
         addr.chain = i.to_bytes(4, "big")
         sk = wots_gen_sk(sk_seed, addr)
+        # TODO: gen_chain have error
         pk_element = gen_chain(sk, 0, SPX_WOTS_W - 1, pub_seed, addr)
         pk.extend(pk_element)
 
