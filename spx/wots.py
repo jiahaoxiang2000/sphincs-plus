@@ -32,18 +32,18 @@ def wots_gen_sk(sk_seed: bytes, addr: Address) -> bytes:
     return bytearray(prf_addr(sk_seed, addr))
 
 
-def base_w(msg: bytes, out_len: int) -> List[int]:
+def base_w(msg: bytes, out_len: int) -> bytearray:
     """Convert byte string to base w"""
     consumed = 0
     bits = 0
     total = 0
-    output = []
+    output = bytearray()
 
-    for i in range(out_len):
+    for _ in range(out_len):
         if bits == 0:
-            total = msg[consumed // (8 // SPX_WOTS_LOGW)]
+            total = msg[consumed]
             bits = 8
-            consumed += SPX_WOTS_LOGW
+            consumed += 1
         bits -= SPX_WOTS_LOGW
         output.append((total >> bits) & (SPX_WOTS_W - 1))
 
