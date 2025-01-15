@@ -1,5 +1,7 @@
 from enum import Enum
 
+from spx.constant import *  # Import all constants from spx.constant
+
 
 class AddrType(Enum):
     WOTS_HASH = 0
@@ -13,75 +15,45 @@ class AddrType(Enum):
 
 class Address:
     def __init__(self):
-        self.layer = bytearray(4)  # 32-bit word
-        self.tree = bytearray(12)
-        self.type = None
+        self._addr = bytearray(32)  # Ensure _addr is a bytearray
+        self._type = None
 
+    def set_layer_addr(self, layer: int) -> None:
+        self._addr[SPX_OFFSET_LAYER] = layer
 
-class WOTSAddress(Address):
-    def __init__(self):
-        super().__init__()
-        self.type = AddrType.WOTS_HASH
-        self.key_pair = bytearray(4)
-        self.chain = bytearray(4)
-        self.hash = bytearray(4)
+    def set_tree_addr(self, tree: int) -> None:
+        self._addr[SPX_OFFSET_TREE : SPX_OFFSET_TREE + 8] = tree.to_bytes(8, "big")
 
-    def to_bytes(self):
-        type = self.type.value.to_bytes(4, "big")
-        return self.layer + self.tree + type + self.key_pair + self.chain + self.hash
+    def set_type(self, type: int) -> None:
+        self._addr[SPX_OFFSET_TYPE] = type
 
+    def copy_subtree_addr(self, other: "Address") -> None:
+        self._addr[: SPX_OFFSET_TREE + 8] = other._addr[: SPX_OFFSET_TREE + 8]
 
-class WOTSPKAddress(Address):
-    def __init__(self):
-        super().__init__()
-        self.type = AddrType.WOTS_PK
-        self.key_pair = bytearray(4)
+    def set_keypair_addr(self, keypair: int) -> None:
+        if SPX_FULL_HEIGHT // SPX_D > 8:
+            self._addr[SPX_OFFSET_KP_ADDR2] = keypair >> 8
+        self._addr[SPX_OFFSET_KP_ADDR1] = keypair
 
+    def copy_keypair_addr(self, other: "Address") -> None:
+        self._addr[: SPX_OFFSET_TREE + 8] = other._addr[: SPX_OFFSET_TREE + 8]
+        if SPX_FULL_HEIGHT // SPX_D > 8:
+            self._addr[SPX_OFFSET_KP_ADDR2] = other._addr[SPX_OFFSET_KP_ADDR2]
+        self._addr[SPX_OFFSET_KP_ADDR1] = other._addr[SPX_OFFSET_KP_ADDR1]
 
-class TreeAddress(Address):
-    def __init__(self):
-        super().__init__()
-        self.type = AddrType.TREE
-        self.tree_index = bytearray(4)
-        self.tree_height = bytearray(4)
+    def set_chain_addr(self, chain: int) -> None:
+        self._addr[SPX_OFFSET_CHAIN_ADDR] = chain
 
+    def set_hash_addr(self, hash: int) -> None:
+        self._addr[SPX_OFFSET_HASH_ADDR] = hash
 
-class FORSTreeAddress(Address):
-    def __init__(self):
-        super().__init__()
-        self.type = AddrType.FORS_TREE
-        self.key_pair = bytearray(4)
-        self.tree_index = bytearray(4)
-        self.tree_height = bytearray(4)
+    def set_tree_height(self, tree_height: int) -> None:
+        self._addr[SPX_OFFSET_TREE_HGT] = tree_height
 
+    def set_tree_index(self, tree_index: int) -> None:
+        self._addr[SPX_OFFSET_TREE_INDEX : SPX_OFFSET_TREE_INDEX + 4] = (
+            tree_index.to_bytes(4, "big")
+        )
 
-class FORSRootsAddress(Address):
-    def __init__(self):
-        super().__init__()
-        self.type = AddrType.FORS_ROOTS
-        self.key_pair = bytearray(4)
-
-
-class WOTSPrfAddress(Address):
-    def __init__(self):
-        super().__init__()
-        self.type = AddrType.WOTS_PRF
-        self.key_pair = bytearray(4)
-        self.chain = bytearray(4)
-        self.hash = bytearray(4)
-
-
-class FORSPrfAddress(Address):
-    def __init__(self):
-        super().__init__()
-        self.type = AddrType.FORS_PRF
-        self.key_pair = bytearray(4)
-        self.tree_index = bytearray(4)
-        self.tree_height = bytearray(4)
-
-
-if __name__ == "__main__":
-    addr = Address()
-    print(addr.layer)
-    print(addr.tree)
-    print
+    def to_bytes(self) -> bytes:
+        return bytes(self._addr)
