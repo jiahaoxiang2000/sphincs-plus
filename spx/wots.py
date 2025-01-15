@@ -13,8 +13,8 @@ def prf_addr(key: bytes, addr: Address) -> bytes:
 
 
 def gen_chain(
-    input_data: bytes, start: int, steps: int, pub_seed: bytes, addr: Address
-) -> bytes:
+    input_data: bytearray, start: int, steps: int, pub_seed: bytearray, addr: Address
+) -> bytearray:
     """Compute the chaining function"""
     out = input_data[:SPX_N]
 
@@ -50,7 +50,7 @@ def base_w(msg: bytes, out_len: int) -> bytearray:
     return output
 
 
-def wots_checksum(csum_base_w: bytearray, msg_base_w: bytearray) -> None:
+def wots_checksum(msg_base_w: bytearray) -> bytearray:
     """Compute the checksum of the message in base-w format and convert it to base-w."""
     csum = 0
     csum_bytes = bytearray((SPX_WOTS_LEN2 * SPX_WOTS_LOGW + 7) // 8)
@@ -63,7 +63,33 @@ def wots_checksum(csum_base_w: bytearray, msg_base_w: bytearray) -> None:
     # Make sure expected empty zero bits are the least significant bits.
     csum = csum << ((8 - ((SPX_WOTS_LEN2 * SPX_WOTS_LOGW) % 8)) % 8)
     csum_bytes = csum.to_bytes(len(csum_bytes), byteorder="big")
-    csum_base_w[:] = base_w(csum_bytes, SPX_WOTS_LEN2)
+    return base_w(csum_bytes, SPX_WOTS_LEN2)
+
+
+def chain_lengths(lengths: bytearray, msg: bytearray):
+    """Compute the lengths by the msg, where spilt to base w and computer the checksum"""
+    lengths[:SPX_WOTS_LEN1] = base_w(msg, SPX_WOTS_LEN1)
+    lengths[SPX_WOTS_LEN1 : SPX_WOTS_LEN1 + SPX_WOTS_LEN2] = wots_checksum(lengths)
+
+
+def wots_sign(
+    sig: bytearray,
+    msg: bytearray,
+    sk_seed: bytearray,
+    pub_seed: bytearray,
+    addr: Address,
+) -> None:
+    """Generate WOTS signature"""
+    lengths = bytearray(SPX_WOTS_LEN)
+
+    chain_lengths(lengths, msg)
+
+    for i in range(SPX_WOTS_LEN):
+        addr.set_chain_addr(i)
+        sig[i * SPX_N : (i + 1) * SPX_N] = wots_gen_sk(sk_seed, addr)
+        sig[i * SPX_N : (i + 1) * SPX_N] = gen_chain(
+            sig[i * SPX_N : (i + 1) * SPX_N], 0, lengths[i], pub_seed, addr
+        )
 
 
 def wots_gen_pk(sk_seed: bytes, pub_seed: bytes, addr: Address) -> bytes:
