@@ -28,6 +28,18 @@ class TestWOTS(unittest.TestCase):
         )  # Base-w conversion of the input
         self.assertEqual(base_w(msg, out_len), expected_output)
 
+    def test_wots_checksum(self):
+        # Test wots_checksum function
+        msg_base_w = bytearray([i for i in range(SPX_N)])
+        msg_base_w = base_w(msg_base_w, SPX_WOTS_LEN1)
+
+        csum_base_w = bytearray(SPX_WOTS_LEN2)
+        expected_csum_base_w = bytearray(
+            [1, 6, 8]
+        )  # Expected output after computing checksum
+        wots_checksum(csum_base_w, msg_base_w)
+        self.assertEqual(csum_base_w, expected_csum_base_w)
+
 
 if __name__ == "__main__":
     unittest.main()

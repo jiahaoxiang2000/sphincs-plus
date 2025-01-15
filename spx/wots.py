@@ -50,6 +50,22 @@ def base_w(msg: bytes, out_len: int) -> bytearray:
     return output
 
 
+def wots_checksum(csum_base_w: bytearray, msg_base_w: bytearray) -> None:
+    """Compute the checksum of the message in base-w format and convert it to base-w."""
+    csum = 0
+    csum_bytes = bytearray((SPX_WOTS_LEN2 * SPX_WOTS_LOGW + 7) // 8)
+
+    # Compute checksum.
+    for i in range(SPX_WOTS_LEN1):
+        csum += SPX_WOTS_W - 1 - msg_base_w[i]
+
+    # Convert checksum to base_w.
+    # Make sure expected empty zero bits are the least significant bits.
+    csum = csum << ((8 - ((SPX_WOTS_LEN2 * SPX_WOTS_LOGW) % 8)) % 8)
+    csum_bytes = csum.to_bytes(len(csum_bytes), byteorder="big")
+    csum_base_w[:] = base_w(csum_bytes, SPX_WOTS_LEN2)
+
+
 def wots_gen_pk(sk_seed: bytes, pub_seed: bytes, addr: Address) -> bytes:
     """Generate WOTS public key"""
     pk = bytearray()
