@@ -86,6 +86,13 @@ class TestUtils(unittest.TestCase):
         # Verify the output
         self.assertEqual(output, expected_output)
 
+        # test case 7775da61232966d73d24493dd95020c3
+        input_data = bytearray.fromhex("7775da61232966d73d24493dd95020c3")
+        addr.set_chain_addr(3)
+        expected_output = bytearray.fromhex("ec336f84ce7106c66a7974428a83db54")
+        thash(output, input_data, inblocks, pub_seed, addr)
+        self.assertEqual(output, expected_output)
+
 
 if __name__ == "__main__":
     unittest.main()
