@@ -1,11 +1,11 @@
 import hashlib
 import unittest
+from spx.address import Address
 from spx.utils import (
     seed_state,
     IV_256,
     state_seeded,
     thash,
-    WOTSAddress,
     SPX_N,
     SPX_SHA256_ADDR_BYTES,
 )
@@ -71,7 +71,7 @@ class TestUtils(unittest.TestCase):
         # Create a sample input and address
         input_data = bytes(16)  # Example input data, updated to zero-filled bytes
         inblocks = 1  # Number of input blocks
-        addr = WOTSAddress()
+        addr = Address()
         # Expected output (this should be precomputed or obtained from a trusted source)
         expected_output = bytearray.fromhex(
             "8d23b2881d5e28ac54734379d5c3f681"

@@ -1,20 +1,8 @@
 # from spx.wots import SPX_N
 # from Crypto.Hash import SHA256
-from spx.address import WOTSAddress
+from spx.address import Address
+from spx.constant import *  # Import all constants from spx.constant
 
-
-SPX_N = 16  # Hash output length in bytes
-# Parameters
-SPX_N = 16  # Hash output length in bytes
-SPX_WOTS_W = 16  # Winternitz parameter
-SPX_WOTS_LOGW = 4  # log2(SPX_WOTS_W)
-SPX_WOTS_LEN1 = 64  # Length of message part
-SPX_WOTS_LEN2 = 3  # Length of checksum part
-SPX_WOTS_LEN = SPX_WOTS_LEN1 + SPX_WOTS_LEN2  # Total length
-SPX_WOTS_BYTES = SPX_WOTS_LEN * SPX_N
-SPX_WOTS_PK_BYTES = SPX_WOTS_BYTES
-SPX_SHA256_OUTPUT_BYTES = 32
-SPX_SHA256_ADDR_BYTES = 22
 
 state_seeded = bytearray(40)  # 32 bytes hash state + 8 bytes counter
 
@@ -267,7 +255,7 @@ def sha256_inc_finalize(
 
 
 def thash(
-    out: bytearray, input: bytes, inblocks: int, pub_seed: bytes, addr: WOTSAddress
+    out: bytearray, input: bytes, inblocks: int, pub_seed: bytes, addr: Address
 ) -> None:
     """
     T-hash function using SHA256
