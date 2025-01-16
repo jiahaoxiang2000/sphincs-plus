@@ -282,3 +282,83 @@ def thash(
         outbuf, sha2_state, buf, SPX_SHA256_ADDR_BYTES + inblocks * SPX_N
     )
     out[:] = outbuf[:SPX_N]
+
+
+def treehash(
+    root: bytearray,
+    auth_path: bytearray,
+    sk_seed: bytes,
+    pub_seed: bytes,
+    leaf_idx: int,
+    idx_offset: int,
+    tree_height: int,
+    gen_leaf: callable,
+    tree_addr: Address,
+) -> None:
+    """return the XMSS tree root and the auth path, on the one specific XMSS tree, on its specific leaf node.
+
+    Args:
+        root (bytearray): root node of the XMSS tree
+        auth_path (bytearray): auth node path of the XMSS tree
+        sk_seed (bytes): security seed
+        pub_seed (bytes): public seed
+        leaf_idx (int): input leaf node index
+        idx_offset (int): on the one level, the XMSS tree index
+        tree_height (int): XMSS tree height
+        gen_leaf (callable): leaf node generator
+        tree_addr (Address): address structure
+    """
+    stack = bytearray((tree_height + 1) * SPX_N)
+    heights = [0] * (tree_height + 1)
+    offset = 0
+    idx = 0
+    tree_idx = 0
+
+    while idx < (1 << tree_height):
+        # Add the next leaf node to the stack.
+        gen_leaf(
+            stack[offset * SPX_N : (offset + 1) * SPX_N],
+            sk_seed,
+            pub_seed,
+            idx + idx_offset,
+            tree_addr,
+        )
+        offset += 1
+        heights[offset - 1] = 0
+
+        # If this is a node we need for the auth path. here is the leaf level closed node.
+        if (leaf_idx ^ 0x1) == idx:
+            auth_path[:] = stack[(offset - 1) * SPX_N : offset * SPX_N]
+
+        # While the top-most nodes are of equal height..
+        while offset >= 2 and heights[offset - 1] == heights[offset - 2]:
+            # Compute index of the new node, in the next layer.
+            tree_idx = idx >> (heights[offset - 1] + 1)
+
+            # Set the address of the node we're creating.
+            tree_addr.set_tree_height(heights[offset - 1] + 1)
+            tree_addr.set_tree_index(
+                tree_idx + (idx_offset >> (heights[offset - 1] + 1))
+            )
+
+            # Hash the top-most nodes from the stack together.
+            thash(
+                stack[(offset - 2) * SPX_N : (offset - 1) * SPX_N],
+                stack[(offset - 2) * SPX_N : (offset) * SPX_N],
+                2,
+                pub_seed,
+                tree_addr,
+            )
+            offset -= 1
+            # Note that the top-most node is now one layer higher.
+            heights[offset - 1] += 1
+
+            # If this is a node we need for the auth path.. on the interval closed node.
+            if ((leaf_idx >> heights[offset - 1]) ^ 0x1) == tree_idx:
+                auth_path[
+                    heights[offset - 1] * SPX_N : (heights[offset - 1] + 1) * SPX_N
+                ] = stack[(offset - 1) * SPX_N : offset * SPX_N]
+
+        idx += 1
+
+    root[:] = stack[:SPX_N]

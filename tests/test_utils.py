@@ -8,6 +8,7 @@ from spx.utils import (
     thash,
     SPX_N,
     SPX_SHA256_ADDR_BYTES,
+    treehash,
 )
 
 
@@ -92,6 +93,64 @@ class TestUtils(unittest.TestCase):
         expected_output = bytearray.fromhex("ec336f84ce7106c66a7974428a83db54")
         thash(output, input_data, inblocks, pub_seed, addr)
         self.assertEqual(output, expected_output)
+
+    def test_treehash(self):
+        # Initialize the state with a public seed
+        pub_seed = bytes(i for i in range(16))
+        seed_state(pub_seed)
+
+        # Mock gen_leaf function
+        def mock_gen_leaf(leaf, sk_seed, pub_seed, idx, tree_addr):
+            leaf[:] = bytes([idx] * SPX_N)
+
+        # Create a sample address
+        tree_addr = Address()
+
+        # Prepare buffers for root and auth_path
+        root = bytearray(SPX_N)
+        auth_path = bytearray((8 * SPX_N))  # Assuming tree height of 8 for testing
+
+        # Call the treehash function
+        treehash(
+            root, auth_path, bytes(SPX_N), pub_seed, 0, 0, 4, mock_gen_leaf, tree_addr
+        )
+
+        # Verify the root and auth_path (these values should be precomputed or obtained from a trusted source)
+        all_leaf_values = bytearray(4 * SPX_N)
+        for i in range(4):
+            leaf = bytearray(SPX_N)
+            mock_gen_leaf(leaf, bytes(SPX_N), pub_seed, i, tree_addr)
+            all_leaf_values[i * SPX_N : (i + 1) * SPX_N] = leaf
+        tree_addr.set_tree_height(1)
+        tree_addr.set_tree_index(0)
+        thash(
+            all_leaf_values[0:SPX_N],
+            all_leaf_values[0 : 2 * SPX_N],
+            2,
+            pub_seed,
+            tree_addr,
+        )
+        tree_addr.set_tree_index(1)
+        thash(
+            all_leaf_values[SPX_N : 2 * SPX_N],
+            all_leaf_values[2 * SPX_N : 4 * SPX_N],
+            2,
+            pub_seed,
+            tree_addr,
+        )
+        tree_addr.set_tree_height(2)
+        tree_addr.set_tree_index(0)
+        thash(
+            all_leaf_values[0:SPX_N],
+            all_leaf_values[0 : 2 * SPX_N],
+            2,
+            pub_seed,
+            tree_addr,
+        )
+
+        expected_root = all_leaf_values[0:SPX_N]  # This is a placeholder value
+
+        self.assertEqual(root, expected_root)
 
 
 if __name__ == "__main__":
