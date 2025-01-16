@@ -92,6 +92,26 @@ def wots_sign(
         )
 
 
+def wots_pk_from_sig(
+    pk: bytearray,
+    sig: bytearray,
+    msg: bytearray,
+    pub_seed: bytearray,
+    addr: Address,
+) -> None:
+    lengths = bytearray(SPX_WOTS_LEN)
+    chain_lengths(lengths, msg)
+    for i in range(SPX_WOTS_LEN):
+        addr.set_chain_addr(i)
+        pk[i * SPX_N : (i + 1) * SPX_N] = gen_chain(
+            sig[i * SPX_N : (i + 1) * SPX_N],
+            lengths[i],
+            SPX_WOTS_W - 1 - lengths[i],
+            pub_seed,
+            addr,
+        )
+
+
 def wots_gen_pk(sk_seed: bytes, pub_seed: bytes, addr: Address) -> bytes:
     """Generate WOTS public key"""
     pk = bytearray()
