@@ -1,6 +1,6 @@
 {
   "cmake.sourceDirectory": "/Users/xiangjiahao/py/sphincs+/ref_implement/sphincs-sha256-128f-simple",
-  "cSpell.words": ["fors"],
+  "cSpell.words": ["fors", "treehash"],
   "files.associations": {
     "params.h": "c"
   },
