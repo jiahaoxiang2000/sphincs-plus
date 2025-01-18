@@ -260,7 +260,7 @@ def thash(
     """
     T-hash function using SHA256
     Args:
-        out: output buffer (SPX_N bytes)
+        out: output buffer (SPX_N bytes) must not the copy value
         input: concatenated input blocks
         inblocks: number of input blocks
         pub_seed: public seed (not used in simple variant)
@@ -316,7 +316,7 @@ def treehash(
 
     while idx < (1 << tree_height):
         # Add the next leaf node to the stack.
-        gen_leaf(
+        stack[offset * SPX_N : (offset + 1) * SPX_N] = gen_leaf(
             stack[offset * SPX_N : (offset + 1) * SPX_N],
             sk_seed,
             pub_seed,
@@ -328,7 +328,7 @@ def treehash(
 
         # If this is a node we need for the auth path. here is the leaf level closed node.
         if (leaf_idx ^ 0x1) == idx:
-            auth_path[:] = stack[(offset - 1) * SPX_N : offset * SPX_N]
+            auth_path[0:SPX_N] = stack[(offset - 1) * SPX_N : offset * SPX_N]
 
         # While the top-most nodes are of equal height..
         while offset >= 2 and heights[offset - 1] == heights[offset - 2]:
@@ -342,13 +342,15 @@ def treehash(
             )
 
             # Hash the top-most nodes from the stack together.
+            out = bytearray(SPX_N)
             thash(
-                stack[(offset - 2) * SPX_N : (offset - 1) * SPX_N],
+                out,
                 stack[(offset - 2) * SPX_N : (offset) * SPX_N],
                 2,
                 pub_seed,
                 tree_addr,
             )
+            stack[(offset - 2) * SPX_N : (offset - 1) * SPX_N] = out[0:SPX_N]
             offset -= 1
             # Note that the top-most node is now one layer higher.
             heights[offset - 1] += 1
@@ -357,7 +359,7 @@ def treehash(
             if ((leaf_idx >> heights[offset - 1]) ^ 0x1) == tree_idx:
                 auth_path[
                     heights[offset - 1] * SPX_N : (heights[offset - 1] + 1) * SPX_N
-                ] = stack[(offset - 1) * SPX_N : offset * SPX_N]
+                ] = stack[(offset - 1) * SPX_N : (offset) * SPX_N]
 
         idx += 1
 
