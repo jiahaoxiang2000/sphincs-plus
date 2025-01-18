@@ -6,7 +6,7 @@ from spx.utils import thash
 from spx.constant import *
 
 
-def prf_addr(key: bytes, addr: Address) -> bytes:
+def prf_addr(key: bytearray, addr: Address) -> bytes:
     """PRF function using SHA256"""
     addr_bytes = addr.to_bytes()[:SPX_SHA256_ADDR_BYTES]
     return hashlib.sha256(key + addr_bytes).digest()[:SPX_N]
@@ -25,14 +25,14 @@ def gen_chain(
     return out
 
 
-def wots_gen_sk(sk_seed: bytes, addr: Address) -> bytes:
+def wots_gen_sk(sk_seed: bytearray, addr: Address) -> bytearray:
     """Generate WOTS secret key element"""
     # no problem with this
     addr.set_hash_addr(0)
     return bytearray(prf_addr(sk_seed, addr))
 
 
-def base_w(msg: bytes, out_len: int) -> bytearray:
+def base_w(msg: bytearray, out_len: int) -> bytearray:
     """Convert byte string to base w"""
     consumed = 0
     bits = 0
@@ -112,7 +112,7 @@ def wots_pk_from_sig(
         )
 
 
-def wots_gen_pk(sk_seed: bytes, pub_seed: bytes, addr: Address) -> bytes:
+def wots_gen_pk(sk_seed: bytearray, pub_seed: bytearray, addr: Address) -> bytes:
     """Generate WOTS public key"""
     pk = bytearray()
 
@@ -122,4 +122,4 @@ def wots_gen_pk(sk_seed: bytes, pub_seed: bytes, addr: Address) -> bytes:
         pk_element = gen_chain(sk, 0, SPX_WOTS_W - 1, pub_seed, addr)
         pk.extend(pk_element)
 
-    return bytes(pk)
+    return bytearray(pk)
