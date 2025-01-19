@@ -112,7 +112,7 @@ def wots_pk_from_sig(
         )
 
 
-def wots_gen_pk(sk_seed: bytearray, pub_seed: bytearray, addr: Address) -> bytes:
+def wots_gen_pk(sk_seed: bytearray, pub_seed: bytearray, addr: Address) -> bytearray:
     """Generate WOTS public key"""
     pk = bytearray()
 
@@ -122,4 +122,4 @@ def wots_gen_pk(sk_seed: bytearray, pub_seed: bytearray, addr: Address) -> bytes
         pk_element = gen_chain(sk, 0, SPX_WOTS_W - 1, pub_seed, addr)
         pk.extend(pk_element)
 
-    return bytearray(pk)
+    return pk
