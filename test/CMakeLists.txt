@@ -136,12 +136,3 @@ add_test_target("test" "spx")
 add_test_target("test" "ap_spx")
 add_test_target("test" "dp_spx")
 add_test_target("test" "hp_spx")
-
-# Add group targets for tests
-add_custom_target(sha256_tests DEPENDS sha256-test.exec)
-add_custom_target(wots DEPENDS wots-test.exec)
-add_custom_target(fors DEPENDS fors-test.exec)
-add_custom_target(spx DEPENDS spx-test.exec)
-add_custom_target(ap DEPENDS ap_spx-test.exec)
-add_custom_target(dp DEPENDS dp_spx-test.exec)
-add_custom_target(hp DEPENDS hp_spx-test.exec)
