@@ -1,4 +1,4 @@
-set(SOURCES
+set(SPHINCS_SOURCES
     common.cu
     address.cu
     rng.cu
@@ -16,11 +16,10 @@ set(SOURCES
     thash_sha256.cu
 )
 
-# Create library target
-add_library(sphincs_plus_lib STATIC ${SOURCES})
+# Convert to absolute paths
+list(TRANSFORM SPHINCS_SOURCES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/")
 
-target_include_directories(sphincs_plus_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(sphincs_plus_lib PUBLIC 
-    OpenSSL::Crypto
-    CUDA::cudart
-)
+# Make sources available to parent scope
+set(SPHINCS_SOURCES ${SPHINCS_SOURCES} PARENT_SCOPE)
+set(SPHINCS_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PARENT_SCOPE)
+

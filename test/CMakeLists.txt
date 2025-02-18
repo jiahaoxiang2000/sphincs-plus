@@ -1,27 +1,95 @@
-# # Helper function to create benchmark targets
-# function(add_benchmark_target NAME HASH_TYPE SPX_TYPE)
-#     add_executable(bm-${NAME} bm_ap.cu)
-#     target_compile_definitions(bm-${NAME} PRIVATE 
-#         VARIANT
-#         ${HASH_TYPE}
-#         ${SPX_TYPE}
-#         SIMPLE
-#     )
-#     target_link_libraries(bm-${NAME} PRIVATE sphincs_plus_lib)
-# endfunction()
+set(COMMON_COMPILE_OPTIONS
+    -O3 
+    -m64 
+    -dc 
+    --expt-relaxed-constexpr
+)
 
-# # SHA256 variants
-# add_benchmark_target(sha256-128s SHA256 SPX_128S)
-# add_benchmark_target(sha256-128f SHA256 SPX_128F)
-# add_benchmark_target(sha256-192s SHA256 SPX_192S)
-# add_benchmark_target(sha256-192f SHA256 SPX_192F)
-# add_benchmark_target(sha256-256s SHA256 SPX_256S)
-# add_benchmark_target(sha256-256f SHA256 SPX_256F)
+# Separate CUDA-specific options - changed LTO specification
+set(CUDA_SPECIFIC_OPTIONS
+    -gencode=arch=compute_89,code=lto_89  # Changed from -dlto -arch=sm_89
+)
 
-# # SHAKE256 variants
-# add_benchmark_target(shake256-128s SHAKE256 SPX_128S)
-# add_benchmark_target(shake256-128f SHAKE256 SPX_128F)
-# add_benchmark_target(shake256-192s SHAKE256 SPX_192S)
-# add_benchmark_target(shake256-192f SHAKE256 SPX_192F)
-# add_benchmark_target(shake256-256s SHAKE256 SPX_256S)
-# add_benchmark_target(shake256-256f SHAKE256 SPX_256F)
+function(add_benchmark_target NAME HASH_TYPE SPX_TYPE)
+    add_executable(bm-${NAME} 
+        bm_ap.cu
+        ${SPHINCS_SOURCES}
+    )
+    
+    # Make sure source files can be found relative to current directory
+    set_source_files_properties(bm_ap.cu PROPERTIES
+        COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    
+    target_compile_definitions(bm-${NAME} PRIVATE 
+        VARIANT
+        ${HASH_TYPE}
+        ${SPX_TYPE}
+        SIMPLE
+    )
+    
+    target_include_directories(bm-${NAME} PRIVATE
+        ${SPHINCS_INCLUDE_DIR}
+    )
+    
+    # Separate CUDA and general compile options
+    target_compile_options(bm-${NAME} PRIVATE 
+        ${COMMON_COMPILE_OPTIONS}
+        $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_SPECIFIC_OPTIONS}>
+    )
+    
+    set_target_properties(bm-${NAME} PROPERTIES 
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES 89
+        CUDA_RESOLVE_DEVICE_SYMBOLS ON  # Changed back to ON
+    )
+    
+    # Let CMake handle CUDA-specific link options automatically
+    target_link_libraries(bm-${NAME} PRIVATE
+        OpenSSL::Crypto
+        CUDA::cudart
+    )
+endfunction()
+
+# SHA256 variants
+add_benchmark_target("sha256_128s" SHA256 SPX_128S)
+add_benchmark_target("sha256_128f" SHA256 SPX_128F)
+add_benchmark_target("sha256_192s" SHA256 SPX_192S)
+add_benchmark_target("sha256_192f" SHA256 SPX_192F)
+add_benchmark_target("sha256_256s" SHA256 SPX_256S)
+add_benchmark_target("sha256_256f" SHA256 SPX_256F)
+
+# SHAKE256 variants
+add_benchmark_target("shake256_128s" SHAKE256 SPX_128S)
+add_benchmark_target("shake256_128f" SHAKE256 SPX_128F)
+add_benchmark_target("shake256_192s" SHAKE256 SPX_192S)
+add_benchmark_target("shake256_192f" SHAKE256 SPX_192F)
+add_benchmark_target("shake256_256s" SHAKE256 SPX_256S)
+add_benchmark_target("shake256_256f" SHAKE256 SPX_256F)
+
+# Group targets matching Makefile structure
+add_custom_target(sha256 DEPENDS
+    bm-sha256_128s bm-sha256_128f
+    bm-sha256_192s bm-sha256_192f
+    bm-sha256_256s bm-sha256_256f
+)
+
+add_custom_target(shake256 DEPENDS
+    bm-shake256_128s bm-shake256_128f
+    bm-shake256_192s bm-shake256_192f
+    bm-shake256_256s bm-shake256_256f
+)
+
+# Target to run all benchmarks
+add_custom_target(benchmark_all DEPENDS sha256 shake256)
+
+# Add record target similar to Makefile
+add_custom_target(record
+    COMMAND ${CMAKE_COMMAND} -E echo "Recording benchmarks to 1.txt"
+    COMMAND ${CMAKE_COMMAND} -E rm -f 1.txt
+    COMMAND ${CMAKE_COMMAND} -E touch 1.txt
+    COMMAND ${CMAKE_COMMAND} -E echo "bm-sha256_128s" >> 1.txt
+    COMMAND $<TARGET_FILE:bm-sha256_128s> >> 1.txt
+    # ... similar commands for other variants ...
+    DEPENDS benchmark_all
+)
