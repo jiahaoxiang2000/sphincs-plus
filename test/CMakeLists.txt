@@ -51,6 +51,40 @@ function(add_benchmark_target NAME HASH_TYPE SPX_TYPE)
     )
 endfunction()
 
+# Function for test targets (without bm_ap.cu and specific definitions)
+function(add_test_target NAME TYPE)
+    add_executable(${TYPE}-${NAME}
+        ${TYPE}.cu  # e.g. sha256.cu, wots.cu, etc.
+        ${SPHINCS_SOURCES}
+    )
+    
+    target_include_directories(${TYPE}-${NAME} PRIVATE
+        ${SPHINCS_INCLUDE_DIR}
+    )
+    
+    target_compile_options(${TYPE}-${NAME} PRIVATE 
+        ${COMMON_COMPILE_OPTIONS}
+        $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_SPECIFIC_OPTIONS}>
+    )
+    
+    set_target_properties(${TYPE}-${NAME} PROPERTIES 
+        CUDA_SEPARABLE_COMPILATION ON
+        CUDA_ARCHITECTURES 89
+        CUDA_RESOLVE_DEVICE_SYMBOLS ON
+    )
+    
+    target_link_libraries(${TYPE}-${NAME} PRIVATE
+        OpenSSL::Crypto
+        CUDA::cudart
+    )
+
+    # Add .exec target
+    add_custom_target(${TYPE}-${NAME}.exec
+        COMMAND ${TYPE}-${NAME}
+        DEPENDS ${TYPE}-${NAME}
+    )
+endfunction()
+
 # SHA256 variants
 add_benchmark_target("sha256_128s" SHA256 SPX_128S)
 add_benchmark_target("sha256_128f" SHA256 SPX_128F)
@@ -93,3 +127,21 @@ add_custom_target(record
     # ... similar commands for other variants ...
     DEPENDS benchmark_all
 )
+
+# Add test targets
+add_test_target("test" "sha256")
+add_test_target("test" "wots")
+add_test_target("test" "fors")
+add_test_target("test" "spx")
+add_test_target("test" "ap_spx")
+add_test_target("test" "dp_spx")
+add_test_target("test" "hp_spx")
+
+# Add group targets for tests
+add_custom_target(sha256_tests DEPENDS sha256-test.exec)
+add_custom_target(wots DEPENDS wots-test.exec)
+add_custom_target(fors DEPENDS fors-test.exec)
+add_custom_target(spx DEPENDS spx-test.exec)
+add_custom_target(ap DEPENDS ap_spx-test.exec)
+add_custom_target(dp DEPENDS dp_spx-test.exec)
+add_custom_target(hp DEPENDS hp_spx-test.exec)

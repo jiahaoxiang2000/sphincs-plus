@@ -1,5 +1,5 @@
-#include "../common.h"
-#include "../sha256.h"
+#include "common.h"
+#include "sha256.h"
 
 static unsigned long long cpucycles(void) {
     unsigned long long result;
