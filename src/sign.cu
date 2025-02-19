@@ -57,9 +57,12 @@ inline int _ConvertSMVer2Cores(int major, int minor) {
     } sSMtoCores;
 
     sSMtoCores nGpuArchCoresPerSM[]
-        = {{0x30, 192}, {0x32, 192}, {0x35, 192}, {0x37, 192}, {0x50, 128}, {0x52, 128},
-           {0x53, 128}, {0x60, 64},  {0x61, 128}, {0x62, 128}, {0x70, 64},  {0x72, 64},
-           {0x75, 64},  {0x80, 64},  {0x86, 128}, {-1, -1}};
+        = {{0x30, 192}, {0x32, 192}, {0x35, 192}, {0x37, 192}, // Kepler
+           {0x50, 128}, {0x52, 128}, {0x53, 128},              // Maxwell
+           {0x60, 64},  {0x61, 128}, {0x62, 128},              // Pascal
+           {0x70, 64},  {0x72, 64},  {0x75, 64},               // Volta
+           {0x80, 64},  {0x86, 128}, {0x87, 128}, {0x89, 128}, // Ampere & Ada Lovelace
+           {-1, -1}};
 
     int index = 0;
 
@@ -979,9 +982,9 @@ int face_ap_crypto_sign_keypair_23(u8* pk, u8* sk) {
 
     if (threads * blocks > maxallthreads) printf("threads * blocks > maxallthreads\n");
 
-        // #if  defined(SPX_192S) || defined(SPX_256S)
-        //     blocks = maxallthreads * 2 / threads;
-        // #endif
+    // #if  defined(SPX_192S) || defined(SPX_256S)
+    //     blocks = maxallthreads * 2 / threads;
+    // #endif
 
 #endif // ifdef KEYGEN_SUITBLE_BLOCK
 
@@ -3646,8 +3649,8 @@ __global__ void global_mhp_crypto_sign(u8* sm, u64* smlen, const u8* m, u64 mlen
 
         if (id == 0) memcpy(hp_fors_tree_addr + ttid * 8, wots_addr, 8 * sizeof(int));
 
-            /* Compute a WOTS signature. */
-            // dev_wots_sign(sig, root, sk_seed, pub_seed, wots_addr);
+        /* Compute a WOTS signature. */
+        // dev_wots_sign(sig, root, sk_seed, pub_seed, wots_addr);
 
 #ifdef WOTS_SIGN_LOAD_BALANCING
         unsigned int lengths[SPX_WOTS_LEN];
@@ -3822,7 +3825,7 @@ __global__ void global_mhp_crypto_sign_1(u8* sm, u64* smlen, const u8* m, u64 ml
         dev_hash_message(&dev_mhash[tid * SPX_FORS_MSG_BYTES], &dev_tree[tid], &dev_idx_leaf[tid],
                          sig, pk, t_m, mlen);
 
-        /* Part 2, FORS */
+    /* Part 2, FORS */
 
 #ifdef HYBRID_SIGN_FORS_LOAD_BALANCING
 
@@ -5990,8 +5993,8 @@ int face_mhp_crypto_sign_scheme2_compare(u8* sm, u64* smlen, const u8* m, u64 ml
 
     CHECK(cudaSetDevice(device));
     cudaGetDeviceProperties(&deviceProp, device);
-    cudaOccupancyMaxActiveBlocksPerMultiprocessor(&numBlocksPerSm, global_mhp_crypto_sign_scheme2_compare,
-                                                  threads, 0);
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &numBlocksPerSm, global_mhp_crypto_sign_scheme2_compare, threads, 0);
     maxblocks = numBlocksPerSm * deviceProp.multiProcessorCount;
     maxallthreads = maxblocks * threads;
 

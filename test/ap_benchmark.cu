@@ -4,13 +4,13 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "../api.h"
-#include "../common.h"
-#include "../fors.h"
-#include "../hash.h"
-#include "../params.h"
-#include "../rng.h"
-#include "../wots.h"
+#include "api.h"
+#include "common.h"
+#include "fors.h"
+#include "hash.h"
+#include "params.h"
+#include "rng.h"
+#include "wots.h"
 
 #if (defined(SPX_128F) || defined(SPX_192F) || defined(SPX_256F))
 #define WARM_NTESTS 40

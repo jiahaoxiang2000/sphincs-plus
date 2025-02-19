@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../api.h"
-#include "../rng.h"
+#include "api.h"
+#include "params.h"
+#include "rng.h"
 
 #define SPX_SIGNATURES 1
 

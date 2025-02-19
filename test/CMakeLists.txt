@@ -5,6 +5,8 @@ set(COMMON_COMPILE_OPTIONS
     --expt-relaxed-constexpr
 )
 
+
+set(CMAKE_CUDA_ARCHITECTURES 89)
 # Separate CUDA-specific options - changed LTO specification
 set(CUDA_SPECIFIC_OPTIONS
     -gencode=arch=compute_89,code=lto_89  # Changed from -dlto -arch=sm_89
@@ -78,11 +80,6 @@ function(add_test_target NAME TYPE)
         CUDA::cudart
     )
 
-    # Add .exec target
-    add_custom_target(${TYPE}-${NAME}.exec
-        COMMAND ${TYPE}-${NAME}
-        DEPENDS ${TYPE}-${NAME}
-    )
 endfunction()
 
 # SHA256 variants
@@ -134,5 +131,6 @@ add_test_target("test" "wots")
 add_test_target("test" "fors")
 add_test_target("test" "spx")
 add_test_target("test" "ap_spx")
+add_test_target("test" "ap_benchmark")
 add_test_target("test" "dp_spx")
 add_test_target("test" "hp_spx")
