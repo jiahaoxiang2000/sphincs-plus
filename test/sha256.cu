@@ -64,24 +64,24 @@ void sha2_speed_test() {
     }
 
     printf("\n");
-    printf("---------------gpu dp test (82 * 512)----------------\n");
-    msg_num = 82 * 512;
+    printf("---------------gpu dp test (128 * 256)----------------\n");
+    msg_num = 128 * 256;
     for (int i = 1; i < 20; i++) {
         int msg_size = (2 << i);
         if ((u64) msg_size * msg_num > hash_msg_bytes) break;
-        face_dp_sha256((const u8*) d, gpu_para_md, msg_size, msg_num, 82, 512);
+        face_dp_sha256((const u8*) d, gpu_para_md, msg_size, msg_num, 128, 256);
         double per_hash_time = g_result / msg_num;
         printf("dp %d B, \t%.2lf us\t%.2lfMB/s\t%.2lf us/hash\n", msg_size, g_result,
                (double) msg_size * msg_num / g_result, per_hash_time);
     }
 
     printf("\n");
-    printf("---------------gpu dp test (256 * 1024)----------------\n");
-    msg_num = 256 * 1024; // Try larger batch
+    printf("---------------gpu dp test (128 * 1024)----------------\n");
+    msg_num = 128 * 1024; // Try larger batch
     for (int i = 1; i < 20; i++) {
         int msg_size = (2 << i);
         if ((u64) msg_size * msg_num > hash_msg_bytes) break;
-        face_dp_sha256((const u8*) d, gpu_para_md, msg_size, msg_num, 256, 1024);
+        face_dp_sha256((const u8*) d, gpu_para_md, msg_size, msg_num, 128, 1024);
         double per_hash_time = g_result / msg_num;
         printf("dp %d B, \t%.2lf us\t%.2lfMB/s\t%.2lf us/hash\n", msg_size, g_result,
                (double) msg_size * msg_num / g_result, per_hash_time);

@@ -4,18 +4,24 @@
 
 Here, we try to implement the SHA256 algorithm using CUDA to accelerate the speed of hashing. Three way is used, one is the `batch processing`, this way the code is repeat to run the same code for many times.
 
-The second is the `parallel processing`, which is use the _grid_ and _block_ term to parallel the code.
+The second is the `parallel processing`, which is use the _grid_, _block_ and _thread_ terms to parallel the code.
+
+> let use the RTX 4090 to example, Streaming Multiprocessors (SMs): 128 SMs CUDA Cores: 16,384 cores total, Max Threads per Block: 1,024, Max Blocks per SM: 32, Warp Size: 32 threads (so, the threads need to be multiple of 32)
+> IF the grid \* thread is more than the total threads, the code will be run in multiple times.
 
 ### Throughput Analysis
 
-why the throughput is first increasing and then decreasing with message size?
+#### why the throughput is first increasing and then decreasing with message size?
 
-1. Initial Increase Phase
-   For small message sizes (4B to ~1024B), the throughput increases significantly because: **Overhead costs** (kernel launch, memory transfers) are amortized over larger data sizes The hardware utilization improves as more data is processed More parallelism can be exploited
-2. Peak Performance
-   The throughput reaches a peak around 2048B-4096B where: The GPU's memory bandwidth is being fully utilized The parallel processing units are working efficiently, The balance between computation and memory access is optimal
-3. Decrease/Plateau Phase
-   After the peak, throughput starts to plateau or slightly decrease because: Memory bandwidth becomes the bottleneck, Larger messages require more memory transactions Cache misses increase with larger data sizes, Memory latency has a greater impact on overall performance
+1. Initial Increase Phase For small message sizes (4B to ~1024B), the throughput increases significantly because: **Overhead costs** (kernel launch, memory transfers) are amortized over larger data sizes The hardware utilization improves as more data is processed More parallelism can be exploited
+2. Peak Performance The throughput reaches a peak around 2048B-4096B where: The GPU's memory bandwidth is being fully utilized The parallel processing units are working efficiently, The balance between computation and memory access is optimal
+3. Decrease/Plateau Phase After the peak, throughput starts to plateau or slightly decrease because: Memory bandwidth becomes the bottleneck, Larger messages require more memory transactions Cache misses increase with larger data sizes, Memory latency has a greater impact on overall performance
+
+#### how to set the grid and block size?
+
+1. Resource Contention RTX 4090 has 128 SMs Too many threads compete for shared resources (memory, cache, registers) When threads > 32,768, resource utilization becomes inefficient
+2. Memory Bandwidth Saturation More threads means more memory transactions Memory bandwidth becomes bottleneck Cache thrashing increases with higher thread counts
+3. Warp Scheduling Overhead More warps need to be scheduled Higher context switching overhead Warp scheduler becomes saturated
 
 ```plaintext
 sha256 speed test
@@ -80,6 +86,44 @@ dp 32768 B,     5163.24 us      266447.16MB/s   0.12 us/hash
 dp 65536 B,     10385.40 us     264935.72MB/s   0.25 us/hash
 dp 131072 B,    20657.88 us     266383.85MB/s   0.49 us/hash
 dp 262144 B,    40958.62 us     268706.67MB/s   0.98 us/hash
+
+---------------gpu dp test (128 * 256)----------------
+dp 4 B,         125.51 us       1044.32MB/s     0.00 us/hash
+dp 8 B,         30.49 us        8598.83MB/s     0.00 us/hash
+dp 16 B,        28.96 us        18105.12MB/s    0.00 us/hash
+dp 32 B,        31.06 us        33756.43MB/s    0.00 us/hash
+dp 64 B,        30.21 us        69421.43MB/s    0.00 us/hash
+dp 128 B,       30.61 us        137046.36MB/s   0.00 us/hash
+dp 256 B,       36.82 us        227827.49MB/s   0.00 us/hash
+dp 512 B,       47.55 us        352862.83MB/s   0.00 us/hash
+dp 1024 B,      70.15 us        478324.05MB/s   0.00 us/hash
+dp 2048 B,      146.72 us       457400.35MB/s   0.00 us/hash
+dp 4096 B,      284.22 us       472235.14MB/s   0.01 us/hash
+dp 8192 B,      584.01 us       459645.03MB/s   0.02 us/hash
+dp 16384 B,     1260.90 us      425784.23MB/s   0.04 us/hash
+dp 32768 B,     2363.38 us      454325.43MB/s   0.07 us/hash
+dp 65536 B,     4708.09 us      456126.78MB/s   0.14 us/hash
+dp 131072 B,    9468.04 us      453628.02MB/s   0.29 us/hash
+dp 262144 B,    19038.16 us     451195.58MB/s   0.58 us/hash
+dp 524288 B,    37219.64 us     461580.78MB/s   1.14 us/hash
+
+---------------gpu dp test (128 * 1024)----------------
+dp 4 B,         105.75 us       4957.99MB/s     0.00 us/hash
+dp 8 B,         100.26 us       10458.57MB/s    0.00 us/hash
+dp 16 B,        103.07 us       20346.67MB/s    0.00 us/hash
+dp 32 B,        99.81 us        42024.57MB/s    0.00 us/hash
+dp 64 B,        100.69 us       83312.89MB/s    0.00 us/hash
+dp 128 B,       110.62 us       151663.93MB/s   0.00 us/hash
+dp 256 B,       150.52 us       222920.45MB/s   0.00 us/hash
+dp 512 B,       212.09 us       316416.92MB/s   0.00 us/hash
+dp 1024 B,      624.47 us       214931.66MB/s   0.00 us/hash
+dp 2048 B,      1169.52 us      229526.18MB/s   0.01 us/hash
+dp 4096 B,      2498.68 us      214862.07MB/s   0.02 us/hash
+dp 8192 B,      4929.92 us      217801.06MB/s   0.04 us/hash
+dp 16384 B,     9539.56 us      225113.56MB/s   0.07 us/hash
+dp 32768 B,     17501.45 us     245406.43MB/s   0.13 us/hash
+dp 65536 B,     35160.78 us     244304.41MB/s   0.27 us/hash
+dp 131072 B,    69981.77 us     245490.64MB/s   0.53 us/hash
 
 ---------------gpu dp test (256 * 1024)----------------
 dp 4 B,         195.22 us       5371.39MB/s     0.00 us/hash
