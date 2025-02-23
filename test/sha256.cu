@@ -51,13 +51,40 @@ void sha2_speed_test() {
 
     printf("\n");
     printf("---------------gpu one core test----------------\n");
-    face_sha256(gpu_md, d, 1024, 1000);
-    int iter = 100;
+    // First call to warm up the GPU
+    face_sha256(gpu_md, d, 1024, 1000); // 1000 iterations for warm-up
+
+    int iter = 100; // Number of measurements to average
     for (int i = 1; i < 20; i++) {
         int msg_size = (2 << i);
         face_sha256(gpu_md, d, msg_size, iter);
+        // Divide g_result by iter to get average time per operation
         printf("gpu: %dB \t%10.2lf us\t%10.2lfMB/s\n", msg_size, g_result / iter,
                msg_size / g_result * iter);
+    }
+
+    printf("\n");
+    printf("---------------gpu dp test (82 * 512)----------------\n");
+    msg_num = 82 * 512;
+    for (int i = 1; i < 20; i++) {
+        int msg_size = (2 << i);
+        if ((u64) msg_size * msg_num > hash_msg_bytes) break;
+        face_dp_sha256((const u8*) d, gpu_para_md, msg_size, msg_num, 82, 512);
+        double per_hash_time = g_result / msg_num;
+        printf("dp %d B, \t%.2lf us\t%.2lfMB/s\t%.2lf us/hash\n", msg_size, g_result,
+               (double) msg_size * msg_num / g_result, per_hash_time);
+    }
+
+    printf("\n");
+    printf("---------------gpu dp test (256 * 1024)----------------\n");
+    msg_num = 256 * 1024; // Try larger batch
+    for (int i = 1; i < 20; i++) {
+        int msg_size = (2 << i);
+        if ((u64) msg_size * msg_num > hash_msg_bytes) break;
+        face_dp_sha256((const u8*) d, gpu_para_md, msg_size, msg_num, 256, 1024);
+        double per_hash_time = g_result / msg_num;
+        printf("dp %d B, \t%.2lf us\t%.2lfMB/s\t%.2lf us/hash\n", msg_size, g_result,
+               (double) msg_size * msg_num / g_result, per_hash_time);
     }
 
     // printf("\n");
@@ -180,6 +207,30 @@ void sha2_validity_test() {
         printf("single core check right!\n");
     else
         printf("single core check wrong!\n");
+
+    /* parallel test */
+    for (int j = 0; j < msg_N; j++) {
+        sha256(cpu_para_md + j * 32, d + j * s_msg_B, s_msg_B);
+    }
+
+    face_dp_sha256((const u8*) d, gpu_para_md, s_msg_B, msg_N, 82, 512);
+
+    right = 1;
+    for (int j = 0; j < msg_N; j++) {
+        for (int k = 0; k < 32; k++) {
+            if (cpu_para_md[j * 32 + k] != gpu_para_md[j * 32 + k]) {
+                right = 0;
+                printf("Mismatch at message %d, byte %d: CPU=%02x, GPU=%02x\n", j, k,
+                       cpu_para_md[j * 32 + k], gpu_para_md[j * 32 + k]);
+                break;
+            }
+        }
+        if (!right) break;
+    }
+    if (right == 1)
+        printf("Data parallel SHA256 check right!\n");
+    else
+        printf("Data parallel SHA256 check wrong!\n");
 
     // /* parallel test */
     // for (int j = 0; j < msg_N; j++) {

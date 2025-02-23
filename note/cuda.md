@@ -47,6 +47,43 @@ gpu: 524288B      23451.40 us        22.36MB/s
 gpu: 1048576B     46758.16 us        22.43MB/s
 msg_N = 41984
 
+---------------gpu dp test (82 * 512)----------------
+dp 4 B,         147.65 us       1137.43MB/s     0.00 us/hash
+dp 8 B,         41.19 us        8154.61MB/s     0.00 us/hash
+dp 16 B,        38.96 us        17243.22MB/s    0.00 us/hash
+dp 32 B,        42.14 us        31880.02MB/s    0.00 us/hash
+dp 64 B,        41.07 us        65429.08MB/s    0.00 us/hash
+dp 128 B,       46.54 us        115459.61MB/s   0.00 us/hash
+dp 256 B,       56.67 us        189647.70MB/s   0.00 us/hash
+dp 512 B,       71.88 us        299051.31MB/s   0.00 us/hash
+dp 1024 B,      137.60 us       312439.07MB/s   0.00 us/hash
+dp 2048 B,      267.89 us       320969.49MB/s   0.01 us/hash
+dp 4096 B,      556.51 us       309008.20MB/s   0.01 us/hash
+dp 8192 B,      1260.15 us      272929.07MB/s   0.03 us/hash
+dp 16384 B,     2653.84 us      259196.04MB/s   0.06 us/hash
+dp 32768 B,     5163.24 us      266447.16MB/s   0.12 us/hash
+dp 65536 B,     10385.40 us     264935.72MB/s   0.25 us/hash
+dp 131072 B,    20657.88 us     266383.85MB/s   0.49 us/hash
+dp 262144 B,    40958.62 us     268706.67MB/s   0.98 us/hash
+
+---------------gpu dp test (256 * 1024)----------------
+dp 4 B,         195.22 us       5371.39MB/s     0.00 us/hash
+dp 8 B,         196.94 us       10648.52MB/s    0.00 us/hash
+dp 16 B,        191.65 us       21885.34MB/s    0.00 us/hash
+dp 32 B,        198.35 us       42291.10MB/s    0.00 us/hash
+dp 64 B,        195.29 us       85907.48MB/s    0.00 us/hash
+dp 128 B,       212.68 us       157769.57MB/s   0.00 us/hash
+dp 256 B,       267.81 us       250581.05MB/s   0.00 us/hash
+dp 512 B,       383.97 us       349549.00MB/s   0.00 us/hash
+dp 1024 B,      1200.65 us      223575.67MB/s   0.00 us/hash
+dp 2048 B,      2356.45 us      227830.10MB/s   0.01 us/hash
+dp 4096 B,      4787.37 us      224286.32MB/s   0.02 us/hash
+dp 8192 B,      8869.97 us      242107.26MB/s   0.03 us/hash
+dp 16384 B,     17752.07 us     241941.73MB/s   0.07 us/hash
+dp 32768 B,     34830.77 us     246619.16MB/s   0.13 us/hash
+dp 65536 B,     70134.67 us     244955.43MB/s   0.27 us/hash
+msg_N = 41984
+
 sha256 test
 single core check right!
 ```

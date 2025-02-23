@@ -1,4 +1,3 @@
-
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
@@ -723,6 +722,52 @@ void face_sha256(uint8_t* md, uint8_t* d, size_t n, size_t loop_num) {
 
     cudaFree(dev_d);
     cudaFree(dev_md);
+}
+
+__global__ void global_dp_sha256(uint8_t* out, const uint8_t* in, size_t inlen, size_t total_msg_num) {
+    size_t tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid >= total_msg_num) return;
+
+    // Calculate offset for this thread's input and output
+    uint8_t* my_out = out + tid * 32;  // Each hash output is 32 bytes
+    const uint8_t* my_in = in + tid * inlen;
+    
+    dev_sha256(my_out, (uint8_t*)my_in, inlen);
+}
+
+void face_dp_sha256(const uint8_t* in, uint8_t* out, size_t msg_size,
+                    size_t total_msg_num, size_t grid_size, size_t block_size) {
+    struct timespec start, stop;
+    CHECK(cudaSetDevice(DEVICE_USED));
+    
+    uint8_t *dev_in = NULL, *dev_out = NULL;
+    size_t total_in_size = msg_size * total_msg_num;
+    size_t total_out_size = 32 * total_msg_num;  // 32 bytes per SHA256 hash
+
+    // Allocate device memory
+    CHECK(cudaMalloc((void**)&dev_in, total_in_size));
+    CHECK(cudaMalloc((void**)&dev_out, total_out_size));
+
+    // Copy input data to device
+    CHECK(cudaMemcpy(dev_in, in, total_in_size, HOST_2_DEVICE));
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+
+    // Launch kernel with specified grid and block sizes
+    CHECK(cudaDeviceSynchronize());
+    global_dp_sha256<<<grid_size, block_size>>>(dev_out, dev_in, msg_size, total_msg_num);
+    CHECK(cudaGetLastError());
+    CHECK(cudaDeviceSynchronize());
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
+    g_result = (stop.tv_sec - start.tv_sec) * 1e6 + (stop.tv_nsec - start.tv_nsec) / 1e3;
+
+    // Copy results back to host
+    CHECK(cudaMemcpy(out, dev_out, total_out_size, DEVICE_2_HOST));
+
+    // Clean up
+    cudaFree(dev_in);
+    cudaFree(dev_out);
 }
 
 /**
