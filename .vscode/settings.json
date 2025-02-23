@@ -2,7 +2,8 @@
   "cmake.sourceDirectory": "/home/xjh/misc/sphincs-plus",
   "cSpell.words": ["fors", "treehash"],
   "files.associations": {
-    "params.h": "c"
+    "params.h": "c",
+    "__config": "cpp"
   },
   "python.testing.unittestArgs": ["-v", "-s", "./tests", "-p", "test*.py"],
   "python.testing.pytestEnabled": false,
