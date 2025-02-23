@@ -2,8 +2,7 @@
 
 At first, This is a implementation of the SPHINCS+ signature scheme in _Python_. The implementation is based on the SPHINCS+ reference implementation in C. The target is to provide a simple and **easy-to-understand** implementation of SPHINCS+.
 
-On the next phase, we want the _high parallelism_ of the SPHINCS+ signature scheme to be fully utilized. We will use the **CUDA** to accelerate the SPHINCS+ signature scheme. 
-
+On the next phase, we want the _high parallelism_ of the SPHINCS+ signature scheme to be fully utilized. We will use the **CUDA** to accelerate the SPHINCS+ signature scheme.
 
 ## references
 
