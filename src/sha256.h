@@ -30,6 +30,10 @@ __global__ void global_dp_sha256(uint8_t* out, const uint8_t* in, size_t inlen,
 void face_dp_sha256(const uint8_t* in, uint8_t* out, size_t msg_size, size_t total_msg_num,
                     size_t grid_size, size_t block_size);
 
+// Multi-stream data parallel SHA256 declarations
+void face_msdp_sha256(const uint8_t* in, uint8_t* out, size_t msg_size, size_t total_msg_num,
+                      size_t grid_size, size_t block_size);
+
 void mgf1(unsigned char* out, unsigned long outlen, const unsigned char* in, unsigned long inlen);
 __device__ void dev_mgf1(unsigned char* out, unsigned long outlen, const unsigned char* in,
                          unsigned long inlen);

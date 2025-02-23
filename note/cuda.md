@@ -9,6 +9,10 @@ The second is the `parallel processing`, which is use the _grid_, _block_ and _t
 > let use the RTX 4090 to example, Streaming Multiprocessors (SMs): 128 SMs CUDA Cores: 16,384 cores total, Max Threads per Block: 1,024, Max Blocks per SM: 32, Warp Size: 32 threads (so, the threads need to be multiple of 32)
 > IF the grid \* thread is more than the total threads, the code will be run in multiple times.
 
+The third way is the `multi stream` way, this is depended on the GPU capability, let the parallel to the _max_.
+
+> The NVIDIA GeForce RTX 4090 has a maximum memory bandwidth of 1,008 GB/s.
+
 ### Throughput Analysis
 
 #### why the throughput is first increasing and then decreasing with message size?
@@ -23,7 +27,16 @@ The second is the `parallel processing`, which is use the _grid_, _block_ and _t
 2. Memory Bandwidth Saturation More threads means more memory transactions Memory bandwidth becomes bottleneck Cache thrashing increases with higher thread counts
 3. Warp Scheduling Overhead More warps need to be scheduled Higher context switching overhead Warp scheduler becomes saturated
 
-```plaintext
+#### why the multi streams is slower?
+
+the multi stream is can let the computer and memory simultaneously to work, it`s more efficient on the memory need to sync case. However, we test the sha256 computer is not need to sync, so the multi stream is slower than the parallel way.
+
+#### Throughput test result
+
+##### one cpu speed test
+
+```shell
+
 sha256 speed test
 -------------------CPU test--------------------
 cpu: 4B               1.65 us         2.43MB/s
@@ -46,6 +59,12 @@ cpu: 262144B       1145.66 us       228.82MB/s
 cpu: 524288B       2278.34 us       230.12MB/s
 cpu: 1048576B      4611.85 us       227.37MB/s
 
+```
+
+##### one gpu speed test
+
+```shell
+
 ---------------gpu one core test----------------
 gpu: 4B              24.27 us         0.16MB/s
 gpu: 8B              24.26 us         0.33MB/s
@@ -67,6 +86,12 @@ gpu: 262144B      11771.52 us        22.27MB/s
 gpu: 524288B      23451.40 us        22.36MB/s
 gpu: 1048576B     46758.16 us        22.43MB/s
 msg_N = 41984
+
+```
+
+##### data parallel speed test
+
+```shell
 
 ---------------gpu dp test (82 * 512)----------------
 dp 4 B,         147.65 us       1137.43MB/s     0.00 us/hash
@@ -141,8 +166,87 @@ dp 8192 B,      8869.97 us      242107.26MB/s   0.03 us/hash
 dp 16384 B,     17752.07 us     241941.73MB/s   0.07 us/hash
 dp 32768 B,     34830.77 us     246619.16MB/s   0.13 us/hash
 dp 65536 B,     70134.67 us     244955.43MB/s   0.27 us/hash
-msg_N = 41984
 
-sha256 test
-single core check right!
+```
+
+##### gpu multiple stream speed test
+
+```shell
+
+---------------gpu sync msdp test (128 * 256 * 128)  ----------------
+msdp 4 B,       127.03 us       1031.83MB/s     0.00 us/hash
+msdp 8 B,       1089.36 us      240.64MB/s      0.03 us/hash
+msdp 16 B,      1099.78 us      476.72MB/s      0.03 us/hash
+msdp 32 B,      1116.49 us      939.17MB/s      0.03 us/hash
+msdp 64 B,      1186.74 us      1767.16MB/s     0.04 us/hash
+msdp 128 B,     1287.83 us      3256.87MB/s     0.04 us/hash
+msdp 256 B,     1481.02 us      5664.08MB/s     0.05 us/hash
+msdp 512 B,     1845.65 us      9090.15MB/s     0.06 us/hash
+msdp 1024 B,    3636.03 us      9228.33MB/s     0.11 us/hash
+msdp 2048 B,    6160.38 us      10893.62MB/s    0.19 us/hash
+msdp 4096 B,    12241.22 us     10964.41MB/s    0.37 us/hash
+msdp 8192 B,    23326.97 us     11507.51MB/s    0.71 us/hash
+msdp 16384 B,   46637.09 us     11511.67MB/s    1.42 us/hash
+msdp 32768 B,   93260.60 us     11513.35MB/s    2.85 us/hash
+msdp 65536 B,   139622.71 us    15380.62MB/s    4.26 us/hash
+msdp 131072 B,  193993.89 us    22139.70MB/s    5.92 us/hash
+msdp 262144 B,  413154.78 us    20791.08MB/s    12.61 us/hash
+msdp 524288 B,  763677.90 us    22496.22MB/s    23.31 us/hash
+
+---------------gpu sync msdp test (128 * 1024 * 128)----------------
+msdp 4 B,       1331.73 us      393.69MB/s      0.01 us/hash
+msdp 8 B,       1323.44 us      792.31MB/s      0.01 us/hash
+msdp 16 B,      1317.61 us      1591.64MB/s     0.01 us/hash
+msdp 32 B,      1406.34 us      2982.42MB/s     0.01 us/hash
+msdp 64 B,      1595.88 us      5256.43MB/s     0.01 us/hash
+msdp 128 B,     1979.10 us      8477.21MB/s     0.02 us/hash
+msdp 256 B,     3741.54 us      8968.07MB/s     0.03 us/hash
+msdp 512 B,     6272.86 us      10698.30MB/s    0.05 us/hash
+msdp 1024 B,    12317.52 us     10896.49MB/s    0.09 us/hash
+msdp 2048 B,    23483.69 us     11430.72MB/s    0.18 us/hash
+msdp 4096 B,    46587.71 us     11523.87MB/s    0.36 us/hash
+msdp 8192 B,    93068.63 us     11537.10MB/s    0.71 us/hash
+msdp 16384 B,   96760.32 us     22193.85MB/s    0.74 us/hash
+msdp 32768 B,   191628.73 us    22412.96MB/s    1.46 us/hash
+msdp 65536 B,   410174.66 us    20942.14MB/s    3.13 us/hash
+msdp 131072 B,  757946.14 us    22666.35MB/s    5.78 us/hash
+
+---------------gpu msdp test (128 * 256 * 8)----------------
+msdp 4 B,       127.46 us       1028.35MB/s     0.00 us/hash
+msdp 8 B,       1084.08 us      241.81MB/s      0.03 us/hash
+msdp 16 B,      1156.57 us      453.31MB/s      0.04 us/hash
+msdp 32 B,      1114.81 us      940.59MB/s      0.03 us/hash
+msdp 64 B,      1185.32 us      1769.27MB/s     0.04 us/hash
+msdp 128 B,     1283.42 us      3268.06MB/s     0.04 us/hash
+msdp 256 B,     1478.17 us      5674.98MB/s     0.05 us/hash
+msdp 512 B,     1832.43 us      9155.72MB/s     0.06 us/hash
+msdp 1024 B,    3635.86 us      9228.74MB/s     0.11 us/hash
+msdp 2048 B,    6136.86 us      10935.37MB/s    0.19 us/hash
+msdp 4096 B,    12227.82 us     10976.43MB/s    0.37 us/hash
+msdp 8192 B,    23342.18 us     11500.02MB/s    0.71 us/hash
+msdp 16384 B,   46630.44 us     11513.31MB/s    1.42 us/hash
+msdp 32768 B,   93319.44 us     11506.09MB/s    2.85 us/hash
+msdp 65536 B,   136623.75 us    15718.23MB/s    4.17 us/hash
+msdp 131072 B,  194083.77 us    22129.45MB/s    5.92 us/hash
+msdp 262144 B,  413886.71 us    20754.31MB/s    12.63 us/hash
+msdp 524288 B,  763730.79 us    22494.67MB/s    23.31 us/hash
+
+---------------gpu msdp test (128 * 1024 * 8)----------------
+msdp 4 B,       1299.62 us      403.42MB/s      0.01 us/hash
+msdp 8 B,       1307.79 us      801.79MB/s      0.01 us/hash
+msdp 16 B,      1305.33 us      1606.61MB/s     0.01 us/hash
+msdp 32 B,      1387.27 us      3023.42MB/s     0.01 us/hash
+msdp 64 B,      1583.05 us      5299.00MB/s     0.01 us/hash
+msdp 128 B,     1954.34 us      8584.59MB/s     0.01 us/hash
+msdp 256 B,     3733.92 us      8986.39MB/s     0.03 us/hash
+msdp 512 B,     6248.57 us      10739.87MB/s    0.05 us/hash
+msdp 1024 B,    12322.32 us     10892.25MB/s    0.09 us/hash
+msdp 2048 B,    23400.70 us     11471.26MB/s    0.18 us/hash
+msdp 4096 B,    46567.70 us     11528.83MB/s    0.36 us/hash
+msdp 8192 B,    93088.00 us     11534.70MB/s    0.71 us/hash
+msdp 16384 B,   93679.58 us     22923.71MB/s    0.71 us/hash
+msdp 32768 B,   191558.46 us    22421.18MB/s    1.46 us/hash
+msdp 65536 B,   410345.05 us    20933.44MB/s    3.13 us/hash
+msdp 131072 B,  760427.35 us    22592.39MB/s    5.80 us/hash
+
 ```

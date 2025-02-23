@@ -724,29 +724,30 @@ void face_sha256(uint8_t* md, uint8_t* d, size_t n, size_t loop_num) {
     cudaFree(dev_md);
 }
 
-__global__ void global_dp_sha256(uint8_t* out, const uint8_t* in, size_t inlen, size_t total_msg_num) {
+__global__ void global_dp_sha256(uint8_t* out, const uint8_t* in, size_t inlen,
+                                 size_t total_msg_num) {
     size_t tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= total_msg_num) return;
 
     // Calculate offset for this thread's input and output
-    uint8_t* my_out = out + tid * 32;  // Each hash output is 32 bytes
+    uint8_t* my_out = out + tid * 32; // Each hash output is 32 bytes
     const uint8_t* my_in = in + tid * inlen;
-    
-    dev_sha256(my_out, (uint8_t*)my_in, inlen);
+
+    dev_sha256(my_out, (uint8_t*) my_in, inlen);
 }
 
-void face_dp_sha256(const uint8_t* in, uint8_t* out, size_t msg_size,
-                    size_t total_msg_num, size_t grid_size, size_t block_size) {
+void face_dp_sha256(const uint8_t* in, uint8_t* out, size_t msg_size, size_t total_msg_num,
+                    size_t grid_size, size_t block_size) {
     struct timespec start, stop;
     CHECK(cudaSetDevice(DEVICE_USED));
-    
+
     uint8_t *dev_in = NULL, *dev_out = NULL;
     size_t total_in_size = msg_size * total_msg_num;
-    size_t total_out_size = 32 * total_msg_num;  // 32 bytes per SHA256 hash
+    size_t total_out_size = 32 * total_msg_num; // 32 bytes per SHA256 hash
 
     // Allocate device memory
-    CHECK(cudaMalloc((void**)&dev_in, total_in_size));
-    CHECK(cudaMalloc((void**)&dev_out, total_out_size));
+    CHECK(cudaMalloc((void**) &dev_in, total_in_size));
+    CHECK(cudaMalloc((void**) &dev_out, total_out_size));
 
     // Copy input data to device
     CHECK(cudaMemcpy(dev_in, in, total_in_size, HOST_2_DEVICE));
@@ -768,6 +769,70 @@ void face_dp_sha256(const uint8_t* in, uint8_t* out, size_t msg_size,
     // Clean up
     cudaFree(dev_in);
     cudaFree(dev_out);
+}
+
+void face_msdp_sha256(const uint8_t* in, uint8_t* out, size_t msg_size, size_t total_msg_num,
+                      size_t grid_size, size_t block_size) {
+    struct timespec start, stop;
+    CHECK(cudaSetDevice(DEVICE_USED));
+
+    // Calculate sizes
+    size_t total_in_size = msg_size * total_msg_num;
+    size_t total_out_size = 32 * total_msg_num; // 32 bytes per SHA256 hash
+
+    // Number of streams to use
+    const int n_streams = 8; // Optimized for RTX 4090
+
+    // Calculate messages per stream
+    size_t msgs_per_stream = (total_msg_num + n_streams - 1) / n_streams;
+
+    // Create streams
+    cudaStream_t streams[n_streams];
+    uint8_t *dev_in[n_streams], *dev_out[n_streams];
+
+    for (int i = 0; i < n_streams; i++) {
+        CHECK(cudaStreamCreate(&streams[i]));
+
+        // Allocate device memory for each stream
+        CHECK(cudaMalloc(&dev_in[i], msgs_per_stream * msg_size));
+        CHECK(cudaMalloc(&dev_out[i], msgs_per_stream * 32));
+    }
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+    CHECK(cudaDeviceSynchronize());
+
+    // Launch work in streams
+    for (int i = 0; i < n_streams; i++) {
+        size_t stream_offset = i * msgs_per_stream;
+        size_t msgs_this_stream = min(msgs_per_stream, total_msg_num - stream_offset);
+
+        if (msgs_this_stream <= 0) continue;
+
+        // Copy input data for this stream
+        CHECK(cudaMemcpyAsync(dev_in[i], in + stream_offset * msg_size, msgs_this_stream * msg_size,
+                              HOST_2_DEVICE, streams[i]));
+
+        // Launch kernel in this stream
+        size_t grid_size_stream = (msgs_this_stream + block_size - 1) / block_size;
+        global_dp_sha256<<<grid_size_stream, block_size, 0, streams[i]>>>(
+            dev_out[i], dev_in[i], msg_size, msgs_this_stream);
+
+        // Copy results back
+        CHECK(cudaMemcpyAsync(out + stream_offset * 32, dev_out[i], msgs_this_stream * 32,
+                              DEVICE_2_HOST, streams[i]));
+    }
+
+    // Wait for all streams to complete
+    CHECK(cudaDeviceSynchronize());
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
+    g_result = (stop.tv_sec - start.tv_sec) * 1e6 + (stop.tv_nsec - start.tv_nsec) / 1e3;
+
+    // Cleanup
+    for (int i = 0; i < n_streams; i++) {
+        cudaFree(dev_in[i]);
+        cudaFree(dev_out[i]);
+        cudaStreamDestroy(streams[i]);
+    }
 }
 
 /**
