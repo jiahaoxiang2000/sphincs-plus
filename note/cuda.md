@@ -2,6 +2,21 @@
 
 ## SHA256 speed test
 
+Here, we try to implement the SHA256 algorithm using CUDA to accelerate the speed of hashing. Three way is used, one is the `batch processing`, this way the code is repeat to run the same code for many times.
+
+The second is the `parallel processing`, which is use the _grid_ and _block_ term to parallel the code.
+
+### Throughput Analysis
+
+why the throughput is first increasing and then decreasing with message size?
+
+1. Initial Increase Phase
+   For small message sizes (4B to ~1024B), the throughput increases significantly because: **Overhead costs** (kernel launch, memory transfers) are amortized over larger data sizes The hardware utilization improves as more data is processed More parallelism can be exploited
+2. Peak Performance
+   The throughput reaches a peak around 2048B-4096B where: The GPU's memory bandwidth is being fully utilized The parallel processing units are working efficiently, The balance between computation and memory access is optimal
+3. Decrease/Plateau Phase
+   After the peak, throughput starts to plateau or slightly decrease because: Memory bandwidth becomes the bottleneck, Larger messages require more memory transactions Cache misses increase with larger data sizes, Memory latency has a greater impact on overall performance
+
 ```plaintext
 sha256 speed test
 -------------------CPU test--------------------
