@@ -1,6 +1,11 @@
 {
   "cmake.sourceDirectory": "/home/xjh/misc/sphincs-plus",
-  "cSpell.words": ["fors", "treehash"],
+  "cSpell.words": [
+    "CUDA",
+    "fors",
+    "sphincs",
+    "treehash"
+  ],
   "files.associations": {
     "params.h": "c",
     "__config": "cpp"
