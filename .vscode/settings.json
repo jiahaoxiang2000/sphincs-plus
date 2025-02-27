@@ -1,6 +1,7 @@
 {
   "cmake.sourceDirectory": "/home/xjh/misc/sphincs-plus",
   "cSpell.words": [
+    "bijective",
     "CUDA",
     "fors",
     "sphincs",
