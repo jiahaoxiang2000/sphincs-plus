@@ -736,18 +736,19 @@ __device__ void dev_warp_sha256(uint8_t* out, uint8_t* in, size_t inlen) {
         __syncwarp();
 
         // Each thread maintains a copy of the state for calculations
-        uint32_t a, b, c, d, e, f, g, h;
+        uint32_t a_val = 0, b_val = 0, c_val = 0, d_val = 0, e_val = 0, f_val = 0, g_val = 0,
+                 h_val = 0;
         if (lane_id < 8) {
             int idx = lane_id;
             switch (idx) {
-            case 0: a = shared_state[0]; break;
-            case 1: b = shared_state[1]; break;
-            case 2: c = shared_state[2]; break;
-            case 3: d = shared_state[3]; break;
-            case 4: e = shared_state[4]; break;
-            case 5: f = shared_state[5]; break;
-            case 6: g = shared_state[6]; break;
-            case 7: h = shared_state[7]; break;
+            case 0: a_val = shared_state[0]; break;
+            case 1: b_val = shared_state[1]; break;
+            case 2: c_val = shared_state[2]; break;
+            case 3: d_val = shared_state[3]; break;
+            case 4: e_val = shared_state[4]; break;
+            case 5: f_val = shared_state[5]; break;
+            case 6: g_val = shared_state[6]; break;
+            case 7: h_val = shared_state[7]; break;
             }
         }
         __syncwarp();
@@ -768,28 +769,28 @@ __device__ void dev_warp_sha256(uint8_t* out, uint8_t* in, size_t inlen) {
         // Compression function (each thread processes 2 rounds)
         for (int i = 0; i < 64; i++) {
             // Broadcast values using shfl
-            uint32_t t_a = __shfl_sync(0xFFFFFFFF, a, 0);
-            uint32_t t_b = __shfl_sync(0xFFFFFFFF, b, 1);
-            uint32_t t_c = __shfl_sync(0xFFFFFFFF, c, 2);
-            uint32_t t_d = __shfl_sync(0xFFFFFFFF, d, 3);
-            uint32_t t_e = __shfl_sync(0xFFFFFFFF, e, 4);
-            uint32_t t_f = __shfl_sync(0xFFFFFFFF, f, 5);
-            uint32_t t_g = __shfl_sync(0xFFFFFFFF, g, 6);
-            uint32_t t_h = __shfl_sync(0xFFFFFFFF, h, 7);
+            uint32_t t_a = __shfl_sync(0xFFFFFFFF, a_val, 0);
+            uint32_t t_b = __shfl_sync(0xFFFFFFFF, b_val, 1);
+            uint32_t t_c = __shfl_sync(0xFFFFFFFF, c_val, 2);
+            uint32_t t_d = __shfl_sync(0xFFFFFFFF, d_val, 3);
+            uint32_t t_e = __shfl_sync(0xFFFFFFFF, e_val, 4);
+            uint32_t t_f = __shfl_sync(0xFFFFFFFF, f_val, 5);
+            uint32_t t_g = __shfl_sync(0xFFFFFFFF, g_val, 6);
+            uint32_t t_h = __shfl_sync(0xFFFFFFFF, h_val, 7);
 
             // Each thread computes part of the state update
             if (lane_id < 8) {
                 uint32_t T1 = t_h + Sigma1_32(t_e) + Ch(t_e, t_f, t_g) + cons_K256[i] + W[i & 0xF];
                 uint32_t T2 = Sigma0_32(t_a) + Maj(t_a, t_b, t_c);
 
-                h = t_g;
-                g = t_f;
-                f = t_e;
-                e = t_d + T1;
-                d = t_c;
-                c = t_b;
-                b = t_a;
-                a = T1 + T2;
+                h_val = t_g;
+                g_val = t_f;
+                f_val = t_e;
+                e_val = t_d + T1;
+                d_val = t_c;
+                c_val = t_b;
+                b_val = t_a;
+                a_val = T1 + T2;
             }
             __syncwarp();
         }
@@ -799,14 +800,14 @@ __device__ void dev_warp_sha256(uint8_t* out, uint8_t* in, size_t inlen) {
             int idx = lane_id;
             uint32_t val;
             switch (idx) {
-            case 0: val = a; break;
-            case 1: val = b; break;
-            case 2: val = c; break;
-            case 3: val = d; break;
-            case 4: val = e; break;
-            case 5: val = f; break;
-            case 6: val = g; break;
-            case 7: val = h; break;
+            case 0: val = a_val; break;
+            case 1: val = b_val; break;
+            case 2: val = c_val; break;
+            case 3: val = d_val; break;
+            case 4: val = e_val; break;
+            case 5: val = f_val; break;
+            case 6: val = g_val; break;
+            case 7: val = h_val; break;
             }
             atomicAdd(&shared_state[idx], val);
         }
