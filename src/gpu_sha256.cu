@@ -699,6 +699,192 @@ __global__ void global_sha256(uint8_t* out, uint8_t* in, size_t inlen, size_t lo
         dev_sha256(out, in, inlen);
 } // global_sha256
 
+__device__ void dev_warp_sha256(uint8_t* out, uint8_t* in, size_t inlen) {
+    // Warp-level parallelism implementation
+    const unsigned int lane_id = threadIdx.x & 0x1F; // Thread ID within warp (0-31)
+
+    uint8_t state[40];
+    __shared__ uint32_t shared_state[8];
+    __shared__ uint32_t W[16]; // Message schedule shared across the warp
+
+    // Initialize state and load initial values (only thread 0 in warp)
+    if (lane_id == 0) {
+        dev_sha256_inc_init(state);
+    }
+
+    // Calculate number of blocks
+    size_t num_blocks = (inlen + 63) >> 6; // inlen / 64 rounded up
+    size_t last_block_size = inlen & 0x3F; // inlen % 64
+
+    // Process full blocks
+    for (size_t b = 0; b < num_blocks - 1 || (num_blocks == 1 && last_block_size == 0); b++) {
+        const uint8_t* block_data = in + (b << 6); // b * 64
+
+        // Load message block in parallel (each thread loads 2 words)
+        if (lane_id < 16) {
+            uint32_t word = dev_load_bigendian_32(block_data + (lane_id << 2)); // lane_id * 4
+            W[lane_id] = word;
+        }
+        __syncwarp();
+
+        // If thread 0, load state to shared memory for parallel processing
+        if (lane_id == 0) {
+            for (int i = 0; i < 8; i++) {
+                shared_state[i] = dev_load_bigendian_32(state + (i << 2));
+            }
+        }
+        __syncwarp();
+
+        // Each thread maintains a copy of the state for calculations
+        uint32_t a, b, c, d, e, f, g, h;
+        if (lane_id < 8) {
+            int idx = lane_id;
+            switch (idx) {
+            case 0: a = shared_state[0]; break;
+            case 1: b = shared_state[1]; break;
+            case 2: c = shared_state[2]; break;
+            case 3: d = shared_state[3]; break;
+            case 4: e = shared_state[4]; break;
+            case 5: f = shared_state[5]; break;
+            case 6: g = shared_state[6]; break;
+            case 7: h = shared_state[7]; break;
+            }
+        }
+        __syncwarp();
+
+        // Message schedule expansion (threads 0-15 each handle 3 rounds)
+        if (lane_id < 16) {
+            for (int i = 16; i < 64; i += 16) {
+                int idx = lane_id + i;
+                if (idx < 64) {
+                    uint32_t s0 = sigma0_32(W[(idx - 15) & 0xF]);
+                    uint32_t s1 = sigma1_32(W[(idx - 2) & 0xF]);
+                    W[idx & 0xF] = W[idx & 0xF] + s0 + s1 + W[(idx - 7) & 0xF];
+                }
+            }
+        }
+        __syncwarp();
+
+        // Compression function (each thread processes 2 rounds)
+        for (int i = 0; i < 64; i++) {
+            // Broadcast values using shfl
+            uint32_t t_a = __shfl_sync(0xFFFFFFFF, a, 0);
+            uint32_t t_b = __shfl_sync(0xFFFFFFFF, b, 1);
+            uint32_t t_c = __shfl_sync(0xFFFFFFFF, c, 2);
+            uint32_t t_d = __shfl_sync(0xFFFFFFFF, d, 3);
+            uint32_t t_e = __shfl_sync(0xFFFFFFFF, e, 4);
+            uint32_t t_f = __shfl_sync(0xFFFFFFFF, f, 5);
+            uint32_t t_g = __shfl_sync(0xFFFFFFFF, g, 6);
+            uint32_t t_h = __shfl_sync(0xFFFFFFFF, h, 7);
+
+            // Each thread computes part of the state update
+            if (lane_id < 8) {
+                uint32_t T1 = t_h + Sigma1_32(t_e) + Ch(t_e, t_f, t_g) + cons_K256[i] + W[i & 0xF];
+                uint32_t T2 = Sigma0_32(t_a) + Maj(t_a, t_b, t_c);
+
+                h = t_g;
+                g = t_f;
+                f = t_e;
+                e = t_d + T1;
+                d = t_c;
+                c = t_b;
+                b = t_a;
+                a = T1 + T2;
+            }
+            __syncwarp();
+        }
+
+        // Add compressed chunk to the current hash value
+        if (lane_id < 8) {
+            int idx = lane_id;
+            uint32_t val;
+            switch (idx) {
+            case 0: val = a; break;
+            case 1: val = b; break;
+            case 2: val = c; break;
+            case 3: val = d; break;
+            case 4: val = e; break;
+            case 5: val = f; break;
+            case 6: val = g; break;
+            case 7: val = h; break;
+            }
+            atomicAdd(&shared_state[idx], val);
+        }
+        __syncwarp();
+
+        // Update state (only thread 0)
+        if (lane_id == 0) {
+            for (int i = 0; i < 8; i++) {
+                dev_store_bigendian_32(state + (i << 2), shared_state[i]);
+            }
+
+            // Update byte counter
+            uint64_t bytes = dev_load_bigendian_64(state + 32);
+            bytes += 64;
+            dev_store_bigendian_64(state + 32, bytes);
+        }
+        __syncwarp();
+    }
+
+    // Process the last block with padding
+    if (last_block_size > 0 || num_blocks == 0) {
+        uint8_t padded[128];
+        uint8_t* padded_block = (last_block_size <= 55) ? padded : padded + 64;
+
+        // Only thread 0 handles padding logic
+        if (lane_id == 0) {
+            // Copy remaining data
+            if (last_block_size > 0) {
+                memcpy(padded, in + ((num_blocks - 1) << 6), last_block_size);
+            }
+
+            // Add padding
+            padded[last_block_size] = 0x80;
+            memset(padded + last_block_size + 1, 0, 128 - last_block_size - 1);
+
+            // Add length in bits
+            uint64_t total_bits = (dev_load_bigendian_64(state + 32) + last_block_size) << 3;
+            if (last_block_size <= 55) {
+                dev_store_bigendian_64(padded + 56, total_bits);
+
+                // Process the final block using the existing function
+                dev_crypto_hashblocks_sha256(state, padded, 64);
+            } else {
+                dev_store_bigendian_64(padded + 120, total_bits);
+
+                // Process two blocks
+                dev_crypto_hashblocks_sha256(state, padded, 128);
+            }
+
+            // Copy final hash to output
+            memcpy(out, state, 32);
+        }
+    } else if (lane_id == 0) {
+        // If we processed all full blocks and there's no partial block,
+        // we need to add a padding block
+        uint8_t padded[64];
+        memset(padded, 0, 64);
+        padded[0] = 0x80;
+
+        // Add length in bits
+        uint64_t total_bits = dev_load_bigendian_64(state + 32) << 3;
+        dev_store_bigendian_64(padded + 56, total_bits);
+
+        // Process the final block
+        dev_crypto_hashblocks_sha256(state, padded, 64);
+
+        // Copy final hash to output
+        memcpy(out, state, 32);
+    }
+    __syncwarp();
+}
+
+// Global kernel for warp-level parallel SHA-256
+__global__ void global_warp_sha256(uint8_t* out, uint8_t* in, size_t inlen, size_t loop_num) {
+    for (int i = 0; i < loop_num; i++)
+        dev_warp_sha256(out, in, inlen);
+} // global_warp_sha256
+
 void face_sha256(uint8_t* md, uint8_t* d, size_t n, size_t loop_num) {
     struct timespec start, stop;
     CHECK(cudaSetDevice(DEVICE_USED));
@@ -722,6 +908,82 @@ void face_sha256(uint8_t* md, uint8_t* d, size_t n, size_t loop_num) {
 
     cudaFree(dev_d);
     cudaFree(dev_md);
+}
+
+// Host function to test warp-level parallel SHA-256
+void face_warp_sha256(uint8_t* md, uint8_t* d, size_t n, size_t loop_num) {
+    struct timespec start, stop;
+    CHECK(cudaSetDevice(DEVICE_USED));
+    u8 *dev_d = NULL, *dev_md = NULL;
+
+    CHECK(cudaMalloc((void**) &dev_d, n * sizeof(u8)));
+    CHECK(cudaMalloc((void**) &dev_md, 32 * sizeof(u8)));
+    CHECK(cudaMemcpy(dev_d, d, n * sizeof(u8), HOST_2_DEVICE));
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+
+    CHECK(cudaDeviceSynchronize());
+    // Launch with 1 block but 32 threads (1 warp)
+    global_warp_sha256<<<1, 32>>>(dev_md, dev_d, n, loop_num);
+    CHECK(cudaGetLastError());
+    CHECK(cudaDeviceSynchronize());
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
+
+    g_result = (stop.tv_sec - start.tv_sec) * 1e6 + (stop.tv_nsec - start.tv_nsec) / 1e3;
+
+    CHECK(cudaMemcpy(md, dev_md, 32 * sizeof(u8), DEVICE_2_HOST));
+
+    cudaFree(dev_d);
+    cudaFree(dev_md);
+}
+
+// Warp-level SHA-256 data parallel implementation
+__global__ void global_dp_warp_sha256(uint8_t* out, const uint8_t* in, size_t inlen,
+                                      size_t total_msg_num) {
+    size_t msg_idx = blockIdx.x;
+    if (msg_idx >= total_msg_num) return;
+
+    // Calculate offset for this block's input and output
+    uint8_t* my_out = out + msg_idx * 32; // Each hash output is 32 bytes
+    const uint8_t* my_in = in + msg_idx * inlen;
+
+    // Each block processes one message using warp-level parallelism
+    dev_warp_sha256(my_out, (uint8_t*) my_in, inlen);
+}
+
+// Host function to test data-parallel warp-level SHA-256
+void face_dp_warp_sha256(const uint8_t* in, uint8_t* out, size_t msg_size, size_t total_msg_num) {
+    struct timespec start, stop;
+    CHECK(cudaSetDevice(DEVICE_USED));
+
+    uint8_t *dev_in = NULL, *dev_out = NULL;
+    size_t total_in_size = msg_size * total_msg_num;
+    size_t total_out_size = 32 * total_msg_num; // 32 bytes per SHA256 hash
+
+    // Allocate device memory
+    CHECK(cudaMalloc((void**) &dev_in, total_in_size));
+    CHECK(cudaMalloc((void**) &dev_out, total_out_size));
+
+    // Copy input data to device
+    CHECK(cudaMemcpy(dev_in, in, total_in_size, HOST_2_DEVICE));
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+
+    // Launch kernel with one block per message, 32 threads (1 warp) per block
+    CHECK(cudaDeviceSynchronize());
+    global_dp_warp_sha256<<<total_msg_num, 32>>>(dev_out, dev_in, msg_size, total_msg_num);
+    CHECK(cudaGetLastError());
+    CHECK(cudaDeviceSynchronize());
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
+    g_result = (stop.tv_sec - start.tv_sec) * 1e6 + (stop.tv_nsec - start.tv_nsec) / 1e3;
+
+    // Copy results back to host
+    CHECK(cudaMemcpy(out, dev_out, total_out_size, DEVICE_2_HOST));
+
+    // Clean up
+    cudaFree(dev_in);
+    cudaFree(dev_out);
 }
 
 __global__ void global_dp_sha256(uint8_t* out, const uint8_t* in, size_t inlen,
