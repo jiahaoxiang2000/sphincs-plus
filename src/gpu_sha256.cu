@@ -703,188 +703,279 @@ __device__ void dev_warp_sha256(uint8_t* out, uint8_t* in, size_t inlen) {
     // Warp-level parallelism implementation
     const unsigned int lane_id = threadIdx.x & 0x1F; // Thread ID within warp (0-31)
 
-    uint8_t state[40];
+    // Each thread will need state
+    uint8_t local_state[40];
+
+    // Use shared memory for coordination
     __shared__ uint32_t shared_state[8];
     __shared__ uint32_t W[16]; // Message schedule shared across the warp
 
-    // Initialize state and load initial values (only thread 0 in warp)
+    // Initialize state - only thread 0 in warp
     if (lane_id == 0) {
-        dev_sha256_inc_init(state);
+        dev_sha256_inc_init(local_state);
+        // Copy to shared for other threads
+        for (int i = 0; i < 8; i++) {
+            shared_state[i] = dev_load_bigendian_32(local_state + (i << 2));
+        }
     }
+    __syncwarp();
 
     // Calculate number of blocks
     size_t num_blocks = (inlen + 63) >> 6; // inlen / 64 rounded up
     size_t last_block_size = inlen & 0x3F; // inlen % 64
 
     // Process full blocks
-    for (size_t b = 0; b < num_blocks - 1 || (num_blocks == 1 && last_block_size == 0); b++) {
-        const uint8_t* block_data = in + (b << 6); // b * 64
+    for (size_t block_index = 0; block_index < num_blocks - (last_block_size > 0 ? 0 : 1);
+         block_index++) {
+        const uint8_t* block_data = in + (block_index << 6); // block_index * 64
 
-        // Load message block in parallel (each thread loads 2 words)
+        // Load message block in parallel (each thread loads specific words)
         if (lane_id < 16) {
-            uint32_t word = dev_load_bigendian_32(block_data + (lane_id << 2)); // lane_id * 4
-            W[lane_id] = word;
+            W[lane_id] = dev_load_bigendian_32(block_data + (lane_id << 2));
         }
         __syncwarp();
 
-        // If thread 0, load state to shared memory for parallel processing
-        if (lane_id == 0) {
-            for (int i = 0; i < 8; i++) {
-                shared_state[i] = dev_load_bigendian_32(state + (i << 2));
-            }
-        }
-        __syncwarp();
+        // Copy state from shared memory to local registers for computation
+        uint32_t a = shared_state[0];
+        uint32_t b = shared_state[1];
+        uint32_t c = shared_state[2];
+        uint32_t d = shared_state[3];
+        uint32_t e = shared_state[4];
+        uint32_t f = shared_state[5];
+        uint32_t g = shared_state[6];
+        uint32_t h = shared_state[7];
 
-        // Each thread maintains a copy of the state for calculations
-        uint32_t a_val = 0, b_val = 0, c_val = 0, d_val = 0, e_val = 0, f_val = 0, g_val = 0,
-                 h_val = 0;
-        if (lane_id < 8) {
-            int idx = lane_id;
-            switch (idx) {
-            case 0: a_val = shared_state[0]; break;
-            case 1: b_val = shared_state[1]; break;
-            case 2: c_val = shared_state[2]; break;
-            case 3: d_val = shared_state[3]; break;
-            case 4: e_val = shared_state[4]; break;
-            case 5: f_val = shared_state[5]; break;
-            case 6: g_val = shared_state[6]; break;
-            case 7: h_val = shared_state[7]; break;
-            }
-        }
-        __syncwarp();
+        // Each thread computes some iterations of the compression function
+        uint32_t T1, T2, s0, s1;
 
-        // Message schedule expansion (threads 0-15 each handle 3 rounds)
+        // First 16 rounds - direct message schedule
         if (lane_id < 16) {
-            for (int i = 16; i < 64; i += 16) {
-                int idx = lane_id + i;
-                if (idx < 64) {
-                    uint32_t s0 = sigma0_32(W[(idx - 15) & 0xF]);
-                    uint32_t s1 = sigma1_32(W[(idx - 2) & 0xF]);
-                    W[idx & 0xF] = W[idx & 0xF] + s0 + s1 + W[(idx - 7) & 0xF];
+            int i = lane_id;
+            T1 = h + Sigma1_32(e) + Ch(e, f, g) + cons_K256[i] + W[i];
+            T2 = Sigma0_32(a) + Maj(a, b, c);
+            h = g;
+            g = f;
+            f = e;
+            e = d + T1;
+            d = c;
+            c = b;
+            b = a;
+            a = T1 + T2;
+        }
+        __syncwarp();
+
+        // Rounds 16-63 with message schedule expansion
+        // Divide work among threads
+        for (int r = 16; r < 64; r += 32) {
+            int i = r + lane_id;
+            if (i < 64) {
+                // Message schedule expansion
+                if (i >= 16) {
+                    s0 = sigma0_32(W[(i - 15) & 0xF]);
+                    s1 = sigma1_32(W[(i - 2) & 0xF]);
+                    W[i & 0xF] = W[i & 0xF] + s0 + s1 + W[(i - 7) & 0xF];
                 }
+
+                // One round of compression
+                T1 = h + Sigma1_32(e) + Ch(e, f, g) + cons_K256[i] + W[i & 0xF];
+                T2 = Sigma0_32(a) + Maj(a, b, c);
+                h = g;
+                g = f;
+                f = e;
+                e = d + T1;
+                d = c;
+                c = b;
+                b = a;
+                a = T1 + T2;
             }
-        }
-        __syncwarp();
 
-        // Compression function (each thread processes 2 rounds)
-        for (int i = 0; i < 64; i++) {
-            // Broadcast values using shfl
-            uint32_t t_a = __shfl_sync(0xFFFFFFFF, a_val, 0);
-            uint32_t t_b = __shfl_sync(0xFFFFFFFF, b_val, 1);
-            uint32_t t_c = __shfl_sync(0xFFFFFFFF, c_val, 2);
-            uint32_t t_d = __shfl_sync(0xFFFFFFFF, d_val, 3);
-            uint32_t t_e = __shfl_sync(0xFFFFFFFF, e_val, 4);
-            uint32_t t_f = __shfl_sync(0xFFFFFFFF, f_val, 5);
-            uint32_t t_g = __shfl_sync(0xFFFFFFFF, g_val, 6);
-            uint32_t t_h = __shfl_sync(0xFFFFFFFF, h_val, 7);
-
-            // Each thread computes part of the state update
-            if (lane_id < 8) {
-                uint32_t T1 = t_h + Sigma1_32(t_e) + Ch(t_e, t_f, t_g) + cons_K256[i] + W[i & 0xF];
-                uint32_t T2 = Sigma0_32(t_a) + Maj(t_a, t_b, t_c);
-
-                h_val = t_g;
-                g_val = t_f;
-                f_val = t_e;
-                e_val = t_d + T1;
-                d_val = t_c;
-                c_val = t_b;
-                b_val = t_a;
-                a_val = T1 + T2;
-            }
-            __syncwarp();
+            // Exchange register values using warp-level primitives
+            a = __shfl_sync(0xFFFFFFFF, a, (lane_id + 1) & 0x1F);
+            b = __shfl_sync(0xFFFFFFFF, b, (lane_id + 1) & 0x1F);
+            c = __shfl_sync(0xFFFFFFFF, c, (lane_id + 1) & 0x1F);
+            d = __shfl_sync(0xFFFFFFFF, d, (lane_id + 1) & 0x1F);
+            e = __shfl_sync(0xFFFFFFFF, e, (lane_id + 1) & 0x1F);
+            f = __shfl_sync(0xFFFFFFFF, f, (lane_id + 1) & 0x1F);
+            g = __shfl_sync(0xFFFFFFFF, g, (lane_id + 1) & 0x1F);
+            h = __shfl_sync(0xFFFFFFFF, h, (lane_id + 1) & 0x1F);
         }
 
-        // Add compressed chunk to the current hash value
-        if (lane_id < 8) {
-            int idx = lane_id;
-            uint32_t val;
-            switch (idx) {
-            case 0: val = a_val; break;
-            case 1: val = b_val; break;
-            case 2: val = c_val; break;
-            case 3: val = d_val; break;
-            case 4: val = e_val; break;
-            case 5: val = f_val; break;
-            case 6: val = g_val; break;
-            case 7: val = h_val; break;
-            }
-            atomicAdd(&shared_state[idx], val);
-        }
-        __syncwarp();
-
-        // Update state (only thread 0)
+        // Only thread 0 updates the shared state
         if (lane_id == 0) {
-            for (int i = 0; i < 8; i++) {
-                dev_store_bigendian_32(state + (i << 2), shared_state[i]);
-            }
+            shared_state[0] += a;
+            shared_state[1] += b;
+            shared_state[2] += c;
+            shared_state[3] += d;
+            shared_state[4] += e;
+            shared_state[5] += f;
+            shared_state[6] += g;
+            shared_state[7] += h;
 
-            // Update byte counter
-            uint64_t bytes = dev_load_bigendian_64(state + 32);
+            // Update byte counter in local state
+            uint64_t bytes = dev_load_bigendian_64(local_state + 32);
             bytes += 64;
-            dev_store_bigendian_64(state + 32, bytes);
+            dev_store_bigendian_64(local_state + 32, bytes);
+
+            // Update hash state in local_state
+            for (int i = 0; i < 8; i++) {
+                dev_store_bigendian_32(local_state + (i << 2), shared_state[i]);
+            }
         }
         __syncwarp();
     }
 
-    // Process the last block with padding
-    if (last_block_size > 0 || num_blocks == 0) {
+    // Last block with padding (only thread 0 handles this)
+    if (lane_id == 0) {
         uint8_t padded[128];
-        uint8_t* padded_block = (last_block_size <= 55) ? padded : padded + 64;
+        memset(padded, 0, 128);
 
-        // Only thread 0 handles padding logic
-        if (lane_id == 0) {
-            // Copy remaining data
-            if (last_block_size > 0) {
-                memcpy(padded, in + ((num_blocks - 1) << 6), last_block_size);
-            }
-
-            // Add padding
-            padded[last_block_size] = 0x80;
-            memset(padded + last_block_size + 1, 0, 128 - last_block_size - 1);
-
-            // Add length in bits
-            uint64_t total_bits = (dev_load_bigendian_64(state + 32) + last_block_size) << 3;
-            if (last_block_size <= 55) {
-                dev_store_bigendian_64(padded + 56, total_bits);
-
-                // Process the final block using the existing function
-                dev_crypto_hashblocks_sha256(state, padded, 64);
-            } else {
-                dev_store_bigendian_64(padded + 120, total_bits);
-
-                // Process two blocks
-                dev_crypto_hashblocks_sha256(state, padded, 128);
-            }
-
-            // Copy final hash to output
-            memcpy(out, state, 32);
+        // Copy remaining data
+        if (last_block_size > 0) {
+            memcpy(padded, in + ((num_blocks - 1) << 6), last_block_size);
         }
-    } else if (lane_id == 0) {
-        // If we processed all full blocks and there's no partial block,
-        // we need to add a padding block
-        uint8_t padded[64];
-        memset(padded, 0, 64);
-        padded[0] = 0x80;
+
+        // Add padding
+        padded[last_block_size] = 0x80;
 
         // Add length in bits
-        uint64_t total_bits = dev_load_bigendian_64(state + 32) << 3;
-        dev_store_bigendian_64(padded + 56, total_bits);
+        uint64_t total_bits = (dev_load_bigendian_64(local_state + 32) + last_block_size) << 3;
 
-        // Process the final block
-        dev_crypto_hashblocks_sha256(state, padded, 64);
+        if (last_block_size <= 55) {
+            // Fits in one block
+            dev_store_bigendian_64(padded + 56, total_bits);
+            dev_crypto_hashblocks_sha256(local_state, padded, 64);
+        } else {
+            // Need two blocks
+            dev_store_bigendian_64(padded + 120, total_bits);
+            dev_crypto_hashblocks_sha256(local_state, padded, 128);
+        }
 
         // Copy final hash to output
-        memcpy(out, state, 32);
+        memcpy(out, local_state, 32);
     }
     __syncwarp();
 }
 
 // Global kernel for warp-level parallel SHA-256
 __global__ void global_warp_sha256(uint8_t* out, uint8_t* in, size_t inlen, size_t loop_num) {
-    for (int i = 0; i < loop_num; i++)
-        dev_warp_sha256(out, in, inlen);
-} // global_warp_sha256
+    // Only execute if we're part of the first warp
+    if (threadIdx.x < 32) {
+        for (int i = 0; i < loop_num; i++) {
+            dev_warp_sha256(out, in, inlen);
+            __syncwarp();
+        }
+    }
+}
+
+// Host function to test warp-level parallel SHA-256
+void face_warp_sha256(uint8_t* md, uint8_t* d, size_t n, size_t loop_num) {
+    struct timespec start, stop;
+    cudaError_t err;
+
+    // First check device availability
+    int deviceCount;
+    err = cudaGetDeviceCount(&deviceCount);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: No CUDA-enabled devices found. Error code %d (%s)\n", err,
+                cudaGetErrorString(err));
+        return;
+    }
+
+    // Set the device with error checking
+    err = cudaSetDevice(DEVICE_USED);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: Failed to set device %d. Error code %d (%s)\n", DEVICE_USED,
+                err, cudaGetErrorString(err));
+        return;
+    }
+
+    u8 *dev_d = NULL, *dev_md = NULL;
+
+    // Allocate device memory with error handling
+    err = cudaMalloc((void**) &dev_d, n * sizeof(u8));
+    if (err != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: Failed to allocate input memory. Error code %d (%s)\n", err,
+                cudaGetErrorString(err));
+        return;
+    }
+
+    err = cudaMalloc((void**) &dev_md, 32 * sizeof(u8));
+    if (err != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: Failed to allocate output memory. Error code %d (%s)\n", err,
+                cudaGetErrorString(err));
+        cudaFree(dev_d);
+        return;
+    }
+
+    // Copy input data with error handling
+    err = cudaMemcpy(dev_d, d, n * sizeof(u8), cudaMemcpyHostToDevice);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: Failed to copy input data. Error code %d (%s)\n", err,
+                cudaGetErrorString(err));
+        cudaFree(dev_d);
+        cudaFree(dev_md);
+        return;
+    }
+
+    // Clear output memory
+    err = cudaMemset(dev_md, 0, 32 * sizeof(u8));
+    if (err != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: Failed to clear output memory. Error code %d (%s)\n", err,
+                cudaGetErrorString(err));
+        cudaFree(dev_d);
+        cudaFree(dev_md);
+        return;
+    }
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+
+    // Ensure all previous operations are complete
+    err = cudaDeviceSynchronize();
+    if (err != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: Failed to synchronize device. Error code %d (%s)\n", err,
+                cudaGetErrorString(err));
+        cudaFree(dev_d);
+        cudaFree(dev_md);
+        return;
+    }
+
+    // Launch kernel with 1 block and 32 threads (1 warp)
+    global_warp_sha256<<<1, 32>>>(dev_md, dev_d, n, loop_num);
+
+    // Check for kernel launch errors
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: Failed to launch kernel. Error code %d (%s)\n", err,
+                cudaGetErrorString(err));
+        cudaFree(dev_d);
+        cudaFree(dev_md);
+        return;
+    }
+
+    // Wait for kernel to finish
+    err = cudaDeviceSynchronize();
+    if (err != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: Failed to synchronize kernel. Error code %d (%s)\n", err,
+                cudaGetErrorString(err));
+        cudaFree(dev_d);
+        cudaFree(dev_md);
+        return;
+    }
+
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
+    g_result = (stop.tv_sec - start.tv_sec) * 1e6 + (stop.tv_nsec - start.tv_nsec) / 1e3;
+
+    // Copy results back with error handling
+    err = cudaMemcpy(md, dev_md, 32 * sizeof(u8), cudaMemcpyDeviceToHost);
+    if (err != cudaSuccess) {
+        fprintf(stderr, "CUDA Error: Failed to copy results back. Error code %d (%s)\n", err,
+                cudaGetErrorString(err));
+    }
+
+    // Free resources
+    cudaFree(dev_d);
+    cudaFree(dev_md);
+}
 
 void face_sha256(uint8_t* md, uint8_t* d, size_t n, size_t loop_num) {
     struct timespec start, stop;
@@ -899,33 +990,6 @@ void face_sha256(uint8_t* md, uint8_t* d, size_t n, size_t loop_num) {
 
     CHECK(cudaDeviceSynchronize());
     global_sha256<<<1, 1>>>(dev_md, dev_d, n, loop_num);
-    CHECK(cudaGetLastError());
-    CHECK(cudaDeviceSynchronize());
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
-
-    g_result = (stop.tv_sec - start.tv_sec) * 1e6 + (stop.tv_nsec - start.tv_nsec) / 1e3;
-
-    CHECK(cudaMemcpy(md, dev_md, 32 * sizeof(u8), DEVICE_2_HOST));
-
-    cudaFree(dev_d);
-    cudaFree(dev_md);
-}
-
-// Host function to test warp-level parallel SHA-256
-void face_warp_sha256(uint8_t* md, uint8_t* d, size_t n, size_t loop_num) {
-    struct timespec start, stop;
-    CHECK(cudaSetDevice(DEVICE_USED));
-    u8 *dev_d = NULL, *dev_md = NULL;
-
-    CHECK(cudaMalloc((void**) &dev_d, n * sizeof(u8)));
-    CHECK(cudaMalloc((void**) &dev_md, 32 * sizeof(u8)));
-    CHECK(cudaMemcpy(dev_d, d, n * sizeof(u8), HOST_2_DEVICE));
-
-    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
-
-    CHECK(cudaDeviceSynchronize());
-    // Launch with 1 block but 32 threads (1 warp)
-    global_warp_sha256<<<1, 32>>>(dev_md, dev_d, n, loop_num);
     CHECK(cudaGetLastError());
     CHECK(cudaDeviceSynchronize());
     clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);

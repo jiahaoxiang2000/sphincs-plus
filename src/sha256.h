@@ -22,6 +22,18 @@ void sha256_inc_finalize(uint8_t* out, uint8_t* state, const uint8_t* in, size_t
 __device__ void dev_sha256_inc_finalize(uint8_t* out, uint8_t* state, void* in, size_t inlen);
 void sha256(uint8_t* out, const uint8_t* in, size_t inlen);
 __device__ void dev_sha256(uint8_t* out, uint8_t* in, size_t inlen);
+
+// Add warp-level parallel SHA256 function declarations
+__device__ void dev_warp_sha256(uint8_t* out, uint8_t* in, size_t inlen);
+__global__ void global_warp_sha256(uint8_t* out, uint8_t* in, size_t inlen, size_t loop_num);
+void face_warp_sha256(uint8_t* out, uint8_t* in, size_t inlen, size_t loop_num);
+
+// Add data parallel warp-level SHA256 declarations
+__global__ void global_dp_warp_sha256(uint8_t* out, const uint8_t* in, size_t inlen,
+                                      size_t total_msg_num);
+void face_dp_warp_sha256(const uint8_t* in, uint8_t* out, size_t msg_size, size_t total_msg_num);
+
+// Single thread GPU SHA256 function declarations
 void face_sha256(uint8_t* out, uint8_t* in, size_t inlen, size_t loop_num);
 
 // Add data parallel SHA256 function declarations
