@@ -89,17 +89,29 @@ void sha2_speed_test() {
     //            (double) msg_size * msg_num / g_result, per_hash_time);
     // }
 
-    // printf("\n");
-    // printf("---------------gpu dp warp test (128 * 32)----------------\n");
-    // msg_num = 128 * 32; // Use smaller batch due to 1 warp per block
-    // for (int i = 1; i < 20; i++) {
-    //     int msg_size = (2 << i);
-    //     if ((u64) msg_size * msg_num > hash_msg_bytes) break;
-    //     face_dp_warp_sha256((const u8*) d, gpu_para_md, msg_size, msg_num);
-    //     double per_hash_time = g_result / msg_num;
-    //     printf("dp warp %d B, \t%.2lf us\t%.2lfMB/s\t%.2lf us/hash\n", msg_size, g_result,
-    //            (double) msg_size * msg_num / g_result, per_hash_time);
-    // }
+    printf("\n");
+    printf("---------------gpu dp warp test (128 * 256)----------------\n");
+    msg_num = 128 * 256; // Use smaller batch due to 1 warp per block
+    for (int i = 1; i < 20; i++) {
+        int msg_size = (2 << i);
+        if ((u64) msg_size * msg_num > hash_msg_bytes) break;
+        face_dp_warp_sha256((const u8*) d, gpu_para_md, msg_size, msg_num);
+        double per_hash_time = g_result / msg_num;
+        printf("dp warp %d B, \t%.2lf us\t%.2lfMB/s\t%.2lf us/hash\n", msg_size, g_result,
+               (double) msg_size * msg_num / g_result, per_hash_time);
+    }
+
+    printf("\n");
+    printf("---------------gpu dp warp test (128 * 1024)----------------\n");
+    msg_num = 128 * 1024; // Use smaller batch due to 1 warp per block
+    for (int i = 1; i < 20; i++) {
+        int msg_size = (2 << i);
+        if ((u64) msg_size * msg_num > hash_msg_bytes) break;
+        face_dp_warp_sha256((const u8*) d, gpu_para_md, msg_size, msg_num);
+        double per_hash_time = g_result / msg_num;
+        printf("dp warp %d B, \t%.2lf us\t%.2lfMB/s\t%.2lf us/hash\n", msg_size, g_result,
+               (double) msg_size * msg_num / g_result, per_hash_time);
+    }
 
     // printf("\n");
     // printf("---------------gpu dp test (128 * 1024)----------------\n");
