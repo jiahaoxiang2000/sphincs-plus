@@ -94,17 +94,16 @@ void test_spx() {
     printf("\n");
     MEASURE("PKGEN 0 ..           ", 2, face_crypto_sign_keypair(pk, sk));
     MEASURE("PKGEN 2 ..           ", NTESTS, face_ap_crypto_sign_keypair_2(pk, sk));
-    // MEASURE("PKGEN 2+3 ..         ", NTESTS, face_ap_crypto_sign_keypair_23(pk, sk));
+    MEASURE("PKGEN 2+dynamic ..           ", NTESTS, face_ap_crypto_sign_keypair_dynamic(pk, sk));
+    MEASURE("PKGEN 2+3 ..         ", NTESTS, face_ap_crypto_sign_keypair_23(pk, sk));
 
-    // MEASURE("Signing 0 ..         ", 2, face_crypto_sign(sm, &smlen, m, SPX_MLEN, sk));
-    // MEASURE("Signing 1 ..         ", 10, face_ap_crypto_sign_1(sm, &smlen, m, SPX_MLEN, sk));
-    // MEASURE("Signing 1+2 ..       ", NTESTS, face_ap_crypto_sign_12(sm, &smlen, m, SPX_MLEN,
-    // sk)); MEASURE("Signing 1+2+3 ..     ", NTESTS, face_ap_crypto_sign_123(sm, &smlen, m,
-    // SPX_MLEN, sk));
+    MEASURE("Signing 0 ..         ", 2, face_crypto_sign(sm, &smlen, m, SPX_MLEN, sk));
+    MEASURE("Signing 1 ..         ", 10, face_ap_crypto_sign_1(sm, &smlen, m, SPX_MLEN, sk));
+    MEASURE("Signing 1+2 ..       ", NTESTS, face_ap_crypto_sign_12(sm, &smlen, m, SPX_MLEN, sk));
+    MEASURE("Signing 1+2+3 ..     ", NTESTS, face_ap_crypto_sign_123(sm, &smlen, m, SPX_MLEN, sk));
 
-    // MEASURE("Verifying 0 ..       ", NTESTS, face_crypto_sign_open(mout, &mlen, sm, smlen, pk));
-    // MEASURE("Verifying 2+3 ..     ", NTESTS, face_ap_crypto_sign_open(mout, &mlen, sm, smlen,
-    // pk));
+    MEASURE("Verifying 0 ..       ", NTESTS, face_crypto_sign_open(mout, &mlen, sm, smlen, pk));
+    MEASURE("Verifying 2+3 ..     ", NTESTS, face_ap_crypto_sign_open(mout, &mlen, sm, smlen, pk));
 
     CHECK(cudaFreeHost(pk));
     CHECK(cudaFreeHost(sk));

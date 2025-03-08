@@ -50,6 +50,7 @@ int face_crypto_sign_keypair(unsigned char* pk, unsigned char* sk);
 int face_ap_crypto_sign_keypair(unsigned char* pk, unsigned char* sk); // 23 version
 int face_ap_crypto_sign_keypair_2(unsigned char* pk, unsigned char* sk);
 int face_ap_crypto_sign_keypair_23(unsigned char* pk, unsigned char* sk);
+int face_ap_crypto_sign_keypair_dynamic(unsigned char* pk, unsigned char* sk);
 int face_treehash_wots(uint32_t loop_num, uint32_t blocks, uint32_t threads,
                        uint32_t maxallthreads);
 int face_ap_treehash_wots_2(uint32_t loop_num, uint32_t blocks, uint32_t threads,
@@ -162,9 +163,10 @@ int face_ms_sdp_crypto_sign_open(unsigned char* m, unsigned long long* mlen,
 int face_mhp_crypto_sign_open(unsigned char* m, unsigned long long* mlen, const unsigned char* sm,
                               unsigned long long smlen, const unsigned char* pk,
                               unsigned int dp_num, unsigned int intra_para);
-int face_mhp_crypto_sign_open_compare(unsigned char* m, unsigned long long* mlen, const unsigned char* sm,
-unsigned long long smlen, const unsigned char* pk,
-unsigned int dp_num, unsigned int intra_para);// with kim
+int face_mhp_crypto_sign_open_compare(unsigned char* m, unsigned long long* mlen,
+                                      const unsigned char* sm, unsigned long long smlen,
+                                      const unsigned char* pk, unsigned int dp_num,
+                                      unsigned int intra_para); // with kim
 int face_ms_mhp_crypto_sign_open(unsigned char* m, unsigned long long* mlen,
                                  const unsigned char* sm, unsigned long long smlen,
                                  const unsigned char* pk, unsigned int dp_num);

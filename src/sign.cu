@@ -489,6 +489,51 @@ __device__ int dev_ap_crypto_sign_keypair_23(u8* pk, u8* sk) {
     return 0;
 }
 
+__device__ int dev_ap_crypto_sign_seed_keypair_dynamic(u8* pk, u8* sk, const u8* seed) {
+    cooperative_groups::grid_group g = cooperative_groups::this_grid();
+    const unsigned int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+    /* We do not need the auth path in key generation, but it simplifies the
+       in one function. */
+    u8 auth_path[SPX_TREE_HEIGHT * SPX_N];
+    uint32_t top_tree_addr[8] = {0};
+
+    dev_set_layer_addr(top_tree_addr, SPX_D - 1);
+    dev_set_type(top_tree_addr, SPX_ADDR_TYPE_HASHTREE);
+
+    /* Initialize SK_SEED, SK_PRF and PUB_SEED from seed. */
+    if (tid == 0) memcpy(sk, seed, CRYPTO_SEEDBYTES);
+
+    if (tid == 0) memcpy(pk, sk + 2 * SPX_N, SPX_N);
+
+    /* This hook allows the hash function instantiation to do whatever
+       preparation or computation it needs, based on the public seed. */
+    if (tid == 0) dev_initialize_hash_function(pk, sk);
+    g.sync();
+
+    /* Compute root node of the top-most subtree. */
+    dev_ap_treehash_wots_dynamic(sk + 3 * SPX_N, auth_path, sk, sk + 2 * SPX_N, 0, 0,
+                                 SPX_TREE_HEIGHT, dev_wots_gen_leaf, top_tree_addr);
+
+    if (tid == 0) memcpy(pk + SPX_N, sk + 3 * SPX_N, SPX_N);
+
+    return 0;
+}
+
+__device__ int dev_ap_crypto_sign_keypair_dynamic(u8* pk, u8* sk) {
+    u8 seed[CRYPTO_SEEDBYTES];
+
+#ifdef DEBUG_MODE
+    for (int i = 0; i < CRYPTO_SEEDBYTES; i++)
+        seed[i] = i;
+#else
+    dev_randombytes(seed, CRYPTO_SEEDBYTES);
+#endif // ifdef DEBUG_MODE
+
+    dev_ap_crypto_sign_seed_keypair_dynamic(pk, sk, seed);
+
+    return 0;
+}
+
 __device__ int dev_treehash_wots(u8* pk, u8* sk) {
     u8 seed[CRYPTO_SEEDBYTES];
 
@@ -538,6 +583,12 @@ __global__ void global_ap_crypto_sign_keypair_23(u8* keypair) {
     u8* pk = keypair;
     u8* sk = keypair + SPX_PK_BYTES;
     dev_ap_crypto_sign_keypair_23(pk, sk);
+}
+
+__global__ void global_ap_crypto_sign_keypair_dynamic(u8* keypair) {
+    u8* pk = keypair;
+    u8* sk = keypair + SPX_PK_BYTES;
+    dev_ap_crypto_sign_keypair_dynamic(pk, sk);
 }
 
 __global__ void global_treehash_wots(u8* keypair, uint32_t loop_num) {
@@ -1002,6 +1053,66 @@ int face_ap_crypto_sign_keypair_23(u8* pk, u8* sk) {
 
     CHECK(cudaDeviceSynchronize());
     cudaLaunchCooperativeKernel((void*) global_ap_crypto_sign_keypair_23, blocks, threads,
+                                kernelArgs);
+    CHECK(cudaGetLastError());
+    CHECK(cudaDeviceSynchronize());
+
+    CHECK(cudaMemcpy(keypair, dev_keypair, SPX_SK_BYTES + SPX_PK_BYTES, D2H));
+    memcpy(pk, keypair, SPX_PK_BYTES);
+    memcpy(sk, &keypair[SPX_PK_BYTES], SPX_SK_BYTES);
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &stop);
+
+    g_result += (stop.tv_sec - start.tv_sec) * 1e6 + (stop.tv_nsec - start.tv_nsec) / 1e3;
+
+    cudaFree(dev_keypair);
+
+    return 0;
+}
+
+int face_ap_crypto_sign_keypair_dynamic(u8* pk, u8* sk) {
+    u8* dev_keypair = NULL;
+    u8 keypair[SPX_SK_BYTES + SPX_PK_BYTES];
+    int device = DEVICE_USED;
+    int maxallthreads;
+    cudaDeviceProp deviceProp;
+    u32 threads = 32;
+    // max parallelism (1 << h) * len
+    u32 blocks = (1 << SPX_TREE_HEIGHT) * SPX_WOTS_LEN / threads + 1;
+
+    CHECK(cudaSetDevice(device));
+    cudaGetDeviceProperties(&deviceProp, device);
+
+#ifdef KEYGEN_SUITBLE_BLOCK
+    maxallthreads
+        = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor) * deviceProp.multiProcessorCount;
+#else  // ifdef KEYGEN_SUITBLE_BLOCK
+    int numBlocksPerSm;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+        &numBlocksPerSm, global_ap_crypto_sign_keypair_dynamic, threads, 0);
+    int maxblocks = numBlocksPerSm * deviceProp.multiProcessorCount;
+    maxallthreads = maxblocks * threads;
+#endif // ifdef KEYGEN_SUITBLE_BLOCK
+
+#ifdef KEYGEN_SUITBLE_BLOCK
+    if (maxallthreads < threads * blocks) blocks = maxallthreads / threads;
+
+    if (threads * blocks > maxallthreads) printf("threads * blocks > maxallthreads\n");
+#endif // ifdef KEYGEN_SUITBLE_BLOCK
+
+    CHECK(cudaMalloc((void**) &dev_keypair, SPX_SK_BYTES + SPX_PK_BYTES));
+
+    struct timespec start, stop;
+
+    if (g_count == 0)
+        printf("blocks, threads: %d * %d\tall = %d\tmax = %d\t", blocks, threads, threads * blocks,
+               maxallthreads);
+    g_count++;
+
+    void* kernelArgs[] = {&dev_keypair};
+    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &start);
+
+    CHECK(cudaDeviceSynchronize());
+    cudaLaunchCooperativeKernel((void*) global_ap_crypto_sign_keypair_dynamic, blocks, threads,
                                 kernelArgs);
     CHECK(cudaGetLastError());
     CHECK(cudaDeviceSynchronize());

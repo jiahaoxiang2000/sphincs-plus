@@ -19,7 +19,7 @@ using namespace std;
 #define MM (1 << SPX_FORS_HEIGHT)
 
 __device__ u8 wots_pk[SPX_WOTS_BYTES * 512]; // provided that thread size is 512
-__device__ u8 leaf_node[SPX_N * 1024 * 22]; // 假设2048个叶节点，最大22层
+__device__ u8 leaf_node[SPX_N * 1024 * 22];  // 假设2048个叶节点，最大22层
 
 extern __device__ uint8_t dev_state_seeded[40];
 __device__ u8 dev_auth_path[20 * SPX_N]; // max < 20
@@ -430,8 +430,8 @@ __device__ void dev_ap_treehash_wots_2(
 
     if (tid == ((leaf_idx >> 0) ^ 0x1)) memcpy(dev_auth_path, leaf_node + tid * SPX_N, SPX_N);
 
-    int branch_para = 4;
-    branch_para = tnum;
+    int branch_para = 1;
+    // branch_para = tnum;
     for (int i = 1, ii = 1; i <= tree_height; i++) {
         g.sync();
         dev_set_tree_height(tree_addr, i);
@@ -861,5 +861,51 @@ __device__ void dev_ap_treehash_wots_shared(
     if (tid == 0) {
         memcpy(auth_path, s_auth_path, SPX_N * tree_height);
         memcpy(root, leaf_node_off, SPX_N);
+    }
+}
+
+__device__ void dev_ap_treehash_wots_dynamic(
+    unsigned char* root, unsigned char* auth_path, const unsigned char* sk_seed,
+    const unsigned char* pub_seed, uint32_t leaf_idx, uint32_t idx_offset, uint32_t tree_height,
+    void (*dev_gen_leaf)(unsigned char* /* leaf */, const unsigned char* /* sk_seed */,
+                         const unsigned char* /* pub_seed */, uint32_t /* addr_idx */,
+                         const uint32_t[8] /* tree_addr */),
+    uint32_t tree_addr[8]) {
+    const unsigned int tid = (blockIdx.x * blockDim.x) + threadIdx.x;
+    cooperative_groups::grid_group g = cooperative_groups::this_grid();
+    u32 leaf_num = (1 << tree_height);
+
+    if (tid < leaf_num)
+        dev_gen_leaf(leaf_node + tid * SPX_N, sk_seed, pub_seed, tid + idx_offset, tree_addr);
+
+    if (tid == ((leaf_idx >> 0) ^ 0x1)) memcpy(dev_auth_path, leaf_node + tid * SPX_N, SPX_N);
+
+    for (int i = 1, ii = 1; i <= tree_height; i++) {
+        g.sync();
+        dev_set_tree_height(tree_addr, i);
+
+        // Calculate number of nodes at this level
+        int nodes_at_level = (leaf_num >> i);
+
+        // Only use threads that are needed for this level
+        if (tid < nodes_at_level) {
+            int off = 2 * tid * ii * SPX_N;
+            dev_set_tree_index(tree_addr, tid);
+            u8 temp[SPX_N * 2];
+            memcpy(temp, leaf_node + off, SPX_N);
+            memcpy(&temp[SPX_N], leaf_node + off + ii * SPX_N, SPX_N);
+            dev_thash(leaf_node + off, temp, 2, pub_seed, tree_addr);
+
+            if (tid == ((leaf_idx >> i) ^ 0x1)) {
+                memcpy(dev_auth_path + i * SPX_N, leaf_node + off, SPX_N);
+            }
+        }
+
+        ii *= 2;
+    }
+
+    if (tid == 0) {
+        memcpy(auth_path, dev_auth_path, SPX_N * tree_height);
+        memcpy(root, leaf_node, SPX_N);
     }
 }

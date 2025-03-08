@@ -74,23 +74,28 @@ dev_ap_treehash_wots(unsigned char* root, unsigned char* auth_path, const unsign
                                       const uint32_t[8] /* tree_addr */),
                      uint32_t tree_addr[8]);
 
-__device__ void
-dev_ap_treehash_wots_2(unsigned char* root, unsigned char* auth_path, const unsigned char* sk_seed,
-                     const unsigned char* pub_seed, uint32_t leaf_idx, uint32_t idx_offset,
-                     uint32_t tree_height,
-                     void (*gen_leaf)(unsigned char* /* leaf */, const unsigned char* /* sk_seed */,
-                                      const unsigned char* /* pub_seed */, uint32_t /* addr_idx */,
-                                      const uint32_t[8] /* tree_addr */),
-                     uint32_t tree_addr[8]);
+__device__ void dev_ap_treehash_wots_2(
+    unsigned char* root, unsigned char* auth_path, const unsigned char* sk_seed,
+    const unsigned char* pub_seed, uint32_t leaf_idx, uint32_t idx_offset, uint32_t tree_height,
+    void (*gen_leaf)(unsigned char* /* leaf */, const unsigned char* /* sk_seed */,
+                     const unsigned char* /* pub_seed */, uint32_t /* addr_idx */,
+                     const uint32_t[8] /* tree_addr */),
+    uint32_t tree_addr[8]);
 
-__device__ void
-dev_ap_treehash_wots_23(unsigned char* root, unsigned char* auth_path, const unsigned char* sk_seed,
-                     const unsigned char* pub_seed, uint32_t leaf_idx, uint32_t idx_offset,
-                     uint32_t tree_height,
-                     void (*gen_leaf)(unsigned char* /* leaf */, const unsigned char* /* sk_seed */,
-                                      const unsigned char* /* pub_seed */, uint32_t /* addr_idx */,
-                                      const uint32_t[8] /* tree_addr */),
-                     uint32_t tree_addr[8]);
+__device__ void dev_ap_treehash_wots_23(
+    unsigned char* root, unsigned char* auth_path, const unsigned char* sk_seed,
+    const unsigned char* pub_seed, uint32_t leaf_idx, uint32_t idx_offset, uint32_t tree_height,
+    void (*gen_leaf)(unsigned char* /* leaf */, const unsigned char* /* sk_seed */,
+                     const unsigned char* /* pub_seed */, uint32_t /* addr_idx */,
+                     const uint32_t[8] /* tree_addr */),
+    uint32_t tree_addr[8]);
+__device__ void dev_ap_treehash_wots_dynamic(
+    unsigned char* root, unsigned char* auth_path, const unsigned char* sk_seed,
+    const unsigned char* pub_seed, uint32_t leaf_idx, uint32_t idx_offset, uint32_t tree_height,
+    void (*dev_gen_leaf)(unsigned char* /* leaf */, const unsigned char* /* sk_seed */,
+                         const unsigned char* /* pub_seed */, uint32_t /* addr_idx */,
+                         const uint32_t[8] /* tree_addr */),
+    uint32_t tree_addr[8]);
 
 __device__ void dev_ap_treehash_wots_shared(
     unsigned char* root, unsigned char* auth_path, const unsigned char* sk_seed,

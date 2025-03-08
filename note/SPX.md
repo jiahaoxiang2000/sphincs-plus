@@ -14,13 +14,16 @@ SLH-DSA-SHA-256-192f
 Warming up 40 iterations.
 Running 200 iterations.
 
-PKGEN 0 ..                32.210 ms (0.032 sec)
-PKGEN 2 ..           blocks, threads: 13 * 32   all = 416       max = 16384           3.823 ms (0.004 sec)
-PKGEN 2+3 ..         blocks, threads: 13 * 32   all = 416       max = 16384           0.219 ms (0.000 sec)
-Signing 0 ..             826.409 ms (0.826 sec)
-Signing 1 ..         blocks, threads: 281 * 32  all = 8992      max = 16384          38.380 ms (0.038 sec)
-Signing 1+2 ..       blocks, threads: 281 * 32  all = 8992      max = 16384           8.472 ms (0.008 sec)
-Signing 1+2+3 ..     blocks, threads: 281 * 32  all = 8992      max = 16384           0.834 ms (0.001 sec)
-Verifying 0 ..            43.526 ms (0.044 sec)
-Verifying 2+3 ..     blocks, threads: 1 * 51    all = 51        max = 52224           3.475 ms (0.003 sec)
+PKGEN 0 ..                31.382 ms (0.031 sec)
+PKGEN 2 ..           blocks, threads: 13 * 32   all = 416       max = 16384           3.844 ms (0.004 sec)
+PKGEN 2+dynamic ..           blocks, threads: 13 * 32   all = 416       max = 16384           3.822 ms (0.004 sec)
+PKGEN 2+3 ..         blocks, threads: 13 * 32   all = 416       max = 16384           0.220 ms (0.000 sec)
+Signing 0 ..             828.356 ms (0.828 sec)
+Signing 1 ..         blocks, threads: 281 * 32  all = 8992      max = 16384          38.450 ms (0.038 sec)
+Signing 1+2 ..       blocks, threads: 281 * 32  all = 8992      max = 16384           8.511 ms (0.009 sec)
+Signing 1+2+3 ..     blocks, threads: 281 * 32  all = 8992      max = 16384           0.820 ms (0.001 sec)
+Verifying 0 ..            43.517 ms (0.044 sec)
+Verifying 2+3 ..     blocks, threads: 1 * 51    all = 51        max = 52224           3.474 ms (0.003 sec)
 ```
+
+here we see the `dev_ap_treehash_wots_2` use the `branch_para` to limit the number of the thread on the nodes merger. so we use the thread to divide two to dynamic strategy to improve the performance, but the a litter improve from the `3.844 ms` to `3.822 ms`, so the main delay is on the other part of the code.
