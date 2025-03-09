@@ -469,66 +469,91 @@ __device__ void dev_ap_treehash_wots_23(
     const unsigned int tnum = gridDim.x * blockDim.x;
     cooperative_groups::grid_group g = cooperative_groups::this_grid();
     u32 leaf_num = (1 << tree_height);
-    u32 max_threads = leaf_num * SPX_WOTS_LEN;
+
+    // Use shared memory for auth path to reduce global memory access
+    __shared__ u8 s_auth_path[SPX_N * 20]; // Maximum auth path size
     uint32_t wots_addr[8] = {0};
     uint32_t wots_pk_addr[8] = {0};
 
-    if (max_threads > tnum) max_threads = tnum - SPX_WOTS_LEN;
-
+    // Process WOTS key generation more efficiently
     dev_set_type(wots_addr, SPX_ADDR_TYPE_WOTS);
     dev_set_type(wots_pk_addr, SPX_ADDR_TYPE_WOTSPK);
     dev_copy_subtree_addr(wots_addr, tree_addr);
 
+    // Coalesced memory access pattern for WOTS chains
+    const u32 max_threads = min(tnum, leaf_num * SPX_WOTS_LEN);
+
     if (tid < max_threads) {
+        // Process multiple chains per thread with stride for better memory access patterns
         for (int i = tid; i < SPX_WOTS_LEN * leaf_num; i += max_threads) {
-            dev_set_keypair_addr(wots_addr, i / SPX_WOTS_LEN);
-            dev_set_chain_addr(wots_addr, i % SPX_WOTS_LEN);
+            // Pre-compute these values to avoid redundant calculations
+            const u32 leaf_idx = i / SPX_WOTS_LEN;
+            const u32 chain_idx = i % SPX_WOTS_LEN;
+
+            // Set addressing components once
+            dev_set_keypair_addr(wots_addr, leaf_idx);
+            dev_set_chain_addr(wots_addr, chain_idx);
             dev_set_hash_addr(wots_addr, 0);
 
+            // Use register-based local memory for the intermediate value
             u8 temp[SPX_N];
             dev_prf_addr(temp, sk_seed, wots_addr);
             dev_gen_chain(temp, temp, 0, SPX_WOTS_W - 1, pub_seed, wots_addr);
+
+            // Direct write to wots_pk with coalesced access pattern
             memcpy(wots_pk + i * SPX_N, temp, SPX_N);
         }
     }
+
+    // One sync point instead of multiple
     g.sync();
 
+    // Process leaf nodes with improved memory access pattern
     if (tid < leaf_num) {
         dev_copy_keypair_addr(wots_pk_addr, wots_addr);
         dev_set_keypair_addr(wots_pk_addr, tid + idx_offset);
-        u8 temp[SPX_WOTS_BYTES];
-        memcpy(temp, wots_pk + tid * SPX_WOTS_BYTES, SPX_WOTS_BYTES);
-        dev_thash(leaf_node + tid * SPX_N, temp, SPX_WOTS_LEN, pub_seed, wots_pk_addr);
+
+        // Use direct access for thash input where possible
+        dev_thash(leaf_node + tid * SPX_N, wots_pk + tid * SPX_WOTS_BYTES, SPX_WOTS_LEN, pub_seed,
+                  wots_pk_addr);
+
+        // Save auth path element if this is the needed node
+        if (tid == ((leaf_idx >> 0) ^ 0x1)) {
+            memcpy(s_auth_path, leaf_node + tid * SPX_N, SPX_N);
+        }
     }
 
-    if (tid == ((leaf_idx >> 0) ^ 0x1)) memcpy(dev_auth_path, leaf_node + tid * SPX_N, SPX_N);
-    // let the number thread dynamic used not the fixed.
-    for (int i = 1, ii = 1; i <= tree_height; i++) {
-        g.sync();
+    // Tree traversal with optimized memory access and reduced syncs
+    // Use shared memory for auth path elements when possible
+    int ii = 1;
+    for (int i = 1; i <= tree_height; i++, ii *= 2) {
+        g.sync(); // Still need this sync point between tree levels
+
         dev_set_tree_height(tree_addr, i);
+        const int nodes_at_level = (leaf_num >> i);
 
-        // Calculate number of nodes at this level
-        int nodes_at_level = (leaf_num >> i);
-
-        // Only use threads that are needed for this level
         if (tid < nodes_at_level) {
-            int off = 2 * tid * ii * SPX_N;
+            const int off = 2 * tid * ii * SPX_N;
             dev_set_tree_index(tree_addr, tid);
-            u8 temp[SPX_N * 2];
-            memcpy(temp, leaf_node + off, SPX_N);
-            memcpy(&temp[SPX_N], leaf_node + off + ii * SPX_N, SPX_N);
-            dev_thash(leaf_node + off, temp, 2, pub_seed, tree_addr);
 
+            // Process tree nodes directly with fewer memory operations
+            u8 buffer[2 * SPX_N];
+            memcpy(buffer, leaf_node + off, SPX_N);
+            memcpy(buffer + SPX_N, leaf_node + off + ii * SPX_N, SPX_N);
+
+            // Hash and write back to leaf_node
+            dev_thash(leaf_node + off, buffer, 2, pub_seed, tree_addr);
+
+            // Save auth path element if this is the needed node
             if (tid == ((leaf_idx >> i) ^ 0x1)) {
-                memcpy(dev_auth_path + i * SPX_N, leaf_node + off, SPX_N);
+                memcpy(s_auth_path + i * SPX_N, leaf_node + off, SPX_N);
             }
         }
-
-        ii *= 2;
     }
 
+    // Final copy to output with a single thread
     if (tid == 0) {
-        memcpy(auth_path, dev_auth_path, SPX_N * tree_height);
+        memcpy(auth_path, s_auth_path, SPX_N * tree_height);
         memcpy(root, leaf_node, SPX_N);
     }
 }
