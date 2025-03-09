@@ -502,26 +502,28 @@ __device__ void dev_ap_treehash_wots_23(
     }
 
     if (tid == ((leaf_idx >> 0) ^ 0x1)) memcpy(dev_auth_path, leaf_node + tid * SPX_N, SPX_N);
-
-    int branch_para = 4;
-    branch_para = tnum;
+    // let the number thread dynamic used not the fixed.
     for (int i = 1, ii = 1; i <= tree_height; i++) {
         g.sync();
         dev_set_tree_height(tree_addr, i);
-        if (tid < branch_para) {
-            for (int j = tid; j < (leaf_num >> i); j += branch_para) {
-                int off = 2 * j * ii * SPX_N;
-                dev_set_tree_index(tree_addr, j);
-                u8 temp[SPX_N * 2];
-                memcpy(temp, leaf_node + off, SPX_N);
-                memcpy(&temp[SPX_N], leaf_node + off + ii * SPX_N, SPX_N);
-                dev_thash(leaf_node + off, temp, 2, pub_seed, tree_addr);
 
-                if (j == ((leaf_idx >> i) ^ 0x1)) {
-                    memcpy(dev_auth_path + i * SPX_N, leaf_node + off, SPX_N);
-                }
+        // Calculate number of nodes at this level
+        int nodes_at_level = (leaf_num >> i);
+
+        // Only use threads that are needed for this level
+        if (tid < nodes_at_level) {
+            int off = 2 * tid * ii * SPX_N;
+            dev_set_tree_index(tree_addr, tid);
+            u8 temp[SPX_N * 2];
+            memcpy(temp, leaf_node + off, SPX_N);
+            memcpy(&temp[SPX_N], leaf_node + off + ii * SPX_N, SPX_N);
+            dev_thash(leaf_node + off, temp, 2, pub_seed, tree_addr);
+
+            if (tid == ((leaf_idx >> i) ^ 0x1)) {
+                memcpy(dev_auth_path + i * SPX_N, leaf_node + off, SPX_N);
             }
         }
+
         ii *= 2;
     }
 
