@@ -31,4 +31,31 @@ Verifying 2+3 ..     blocks, threads: 1 * 51    all = 51        max = 52224     
 
 here we see the `dev_ap_treehash_wots_2` use the `branch_para` to limit the number of the thread on the nodes merger. so we use the thread to divide two to dynamic strategy to improve the performance, but the a litter improve from the `3.844 ms` to `3.822 ms`, so the main delay is on the other part of the code.
 
-### The tree-based parallelism
+### The tree hash parallelism
+
+Tree hash parallelism is a critical optimization technique in SPHINCS+. The recent optimizations to the `dev_ap_treehash_wots_23` function demonstrate significant performance improvements, reducing execution time from 0.221 ms to 0.197 ms. These optimizations include:
+
+1. **Shared Memory Usage**: Replacing global memory access with shared memory for authentication path storage reduces memory latency and improves throughput.
+
+2. **Memory Access Pattern Optimization**:
+
+   - Implementing coalesced memory access patterns for WOTS chains
+   - Direct access optimizations for thash input
+   - Minimizing redundant memory operations during tree traversal
+
+3. **Thread Synchronization Reduction**:
+
+   - Consolidating synchronization points to minimize thread waiting time
+   - Using a single sync point between tree levels instead of multiple syncs
+
+4. **Efficient Workload Distribution**:
+
+   - Dynamic thread allocation based on available resources
+   - Optimized stride patterns for processing multiple WOTS chains per thread
+
+5. **Computation Elimination**:
+   - Pre-computing leaf and chain indices to avoid redundant calculations
+   - Setting addressing components once per operation
+   - Eliminating unnecessary temporary buffers
+
+These optimizations collectively demonstrate how tree-based parallelism can be further enhanced through careful memory management and thread coordination, resulting in a 10.9% performance improvement for the treehash operation.
