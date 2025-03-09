@@ -20,7 +20,7 @@ PKGEN 2+dynamic ..           blocks, threads: 13 * 32   all = 416       max = 16
 PKGEN 2+3 ..         blocks, threads: 13 * 32   all = 416       max = 16384           0.220 ms (0.000 sec)
 PKGEN 2+3 one thead merger..         blocks, threads: 13 * 32   all = 416       max = 16384           0.245 ms (0.000 sec)
 PKGEN 2+3 dynamic ..         blocks, threads: 13 * 32   all = 416       max = 16384           0.221 ms (0.000 sec)
-PKGEN 2+3 dynamic + ..         blocks, threads: 13 * 32   all = 416       max = 16384           0.197 ms (0.000 sec)
+PKGEN 2+3 dynamic + gpu optimize ..         blocks, threads: 13 * 32   all = 416       max = 16384           0.197 ms (0.000 sec)
 Signing 0 ..             828.356 ms (0.828 sec)
 Signing 1 ..         blocks, threads: 281 * 32  all = 8992      max = 16384          38.450 ms (0.038 sec)
 Signing 1+2 ..       blocks, threads: 281 * 32  all = 8992      max = 16384           8.511 ms (0.009 sec)
