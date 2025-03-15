@@ -4,7 +4,38 @@ Let us to improve the performance of SPHINCS+ by using the parallelism technique
 
 ## Throughput
 
-Let us to improve the throughput by key point mind **dynamic parallelism**, we 
+Let us to improve the throughput by key point mind **dynamic parallelism**, we main idea is the every kernel function 
+
+here is the data parallelism of the **CUSPX**:
+
+```shell
+n = 16, h = 66, d = 22, b = 6, k = 33, w = 16, len = 35
+SLH-DSA-SHA-256-128f
+num = 7000
+Parameters: n = 16, h = 66, d = 22, a = 6, k = 33, w = 16, len = 35
+warming up 1 iter
+Running 5 iterations.
+multi-keypair data parallelism
+number, keypair, sign, verify,Sign per op
+0, 0.00, 0.00, 0.01, inf
+1024, 18.76, 491.85, 52.80, 0.4803
+2048, 18.77, 493.00, 53.61, 0.2407
+3072, 18.83, 495.92, 54.67, 0.1614
+4096, 18.86, 497.23, 55.48, 0.1214
+5120, 19.61, 519.46, 58.17, 0.1015
+6144, 19.68, 521.81, 59.13, 0.0849
+7168, 20.04, 502.99, 30.05, 0.0702
+8192, 21.24, 525.28, 30.52, 0.0641
+9216, 24.96, 636.50, 35.30, 0.0691
+10240, 26.93, 686.20, 40.04, 0.0670
+11264, 29.69, 737.06, 42.66, 0.0654
+12288, 29.37, 748.48, 43.41, 0.0609
+13312, 32.04, 816.82, 46.42, 0.0614
+14336, 33.19, 869.80, 50.38, 0.0607
+15360, 34.94, 933.13, 51.63, 0.0608
+16384, 35.60, 942.14, 53.95, 0.0575
+```
+
 
 ## Latency
 

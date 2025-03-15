@@ -7,25 +7,24 @@
 // #define SHAKE256
 
 // #define SPX_128S
-// #define SPX_128F
+#define SPX_128F
 // #define SPX_192S
-#define SPX_192F
+// #define SPX_192F
 // #define SPX_256S
 // #define SPX_256F
 
 #endif
 
-#if (!defined(SPX_128S) && !defined(SPX_128F) \
-	&& !defined(SPX_192S) && !defined(SPX_192F) \
-	&& !defined(SPX_256S) && !defined(SPX_256F))
-    #error SPX_128S or SPX_128F or SPX_192S \
+#if (!defined(SPX_128S) && !defined(SPX_128F) && !defined(SPX_192S) && !defined(SPX_192F)          \
+     && !defined(SPX_256S) && !defined(SPX_256F))
+#error SPX_128S or SPX_128F or SPX_192S \
 	or SPX_192F or SPX_256S or SPX_256F should be defined
-#endif /* if (!defined(SPX_128S) && !defined(SPX_128F)
-          && !defined(SPX_192S)&& !defined(SPX_192F)
+#endif /* if (!defined(SPX_128S) && !defined(SPX_128F)                                             \
+          && !defined(SPX_192S)&& !defined(SPX_192F)                                               \
           && !defined(SPX_256S) && !defined(SPX_256F)) */
 
 #if (!defined(SHAKE256) && !defined(SHA256))
-    #error SHAKE256 or SHA256 should be defined
+#error SHAKE256 or SHA256 should be defined
 #endif /* if (!defined(SHAKE256) && !defined(SHA256)) */
 
 /* choosing parameter set ends */
@@ -88,34 +87,34 @@
 
 /* WOTS parameters. */
 #if SPX_WOTS_W == 256
-    #define SPX_WOTS_LOGW 8
+#define SPX_WOTS_LOGW 8
 #elif SPX_WOTS_W == 16
-    #define SPX_WOTS_LOGW 4
-#else  /* if SPX_WOTS_W == 256 */
-    #error SPX_WOTS_W assumed 16 or 256
+#define SPX_WOTS_LOGW 4
+#else /* if SPX_WOTS_W == 256 */
+#error SPX_WOTS_W assumed 16 or 256
 #endif /* if SPX_WOTS_W == 256 */
 
 #define SPX_WOTS_LEN1 (8 * SPX_N / SPX_WOTS_LOGW)
 
 /* SPX_WOTS_LEN2 is floor(log(len_1 * (w - 1)) / log(w)) + 1; we precompute */
 #if SPX_WOTS_W == 256
-    #if SPX_N <= 1
-	#define SPX_WOTS_LEN2 1
-    #elif SPX_N <= 256
-	#define SPX_WOTS_LEN2 2
-    #else  /* if SPX_N <= 1 */
-	#error Did not precompute SPX_WOTS_LEN2 for n outside {2, .., 256}
-    #endif /* if SPX_N <= 1 */
+#if SPX_N <= 1
+#define SPX_WOTS_LEN2 1
+#elif SPX_N <= 256
+#define SPX_WOTS_LEN2 2
+#else /* if SPX_N <= 1 */
+#error Did not precompute SPX_WOTS_LEN2 for n outside {2, .., 256}
+#endif /* if SPX_N <= 1 */
 #elif SPX_WOTS_W == 16
-    #if SPX_N <= 8
-	#define SPX_WOTS_LEN2 2
-    #elif SPX_N <= 136
-	#define SPX_WOTS_LEN2 3
-    #elif SPX_N <= 256
-	#define SPX_WOTS_LEN2 4
-    #else  /* if SPX_N <= 8 */
-	#error Did not precompute SPX_WOTS_LEN2 for n outside {2, .., 256}
-    #endif /* if SPX_N <= 8 */
+#if SPX_N <= 8
+#define SPX_WOTS_LEN2 2
+#elif SPX_N <= 136
+#define SPX_WOTS_LEN2 3
+#elif SPX_N <= 256
+#define SPX_WOTS_LEN2 4
+#else /* if SPX_N <= 8 */
+#error Did not precompute SPX_WOTS_LEN2 for n outside {2, .., 256}
+#endif /* if SPX_N <= 8 */
 #endif /* if SPX_WOTS_W == 256 */
 
 #define SPX_WOTS_LEN (SPX_WOTS_LEN1 + SPX_WOTS_LEN2)
@@ -126,7 +125,7 @@
 #define SPX_TREE_HEIGHT (SPX_FULL_HEIGHT / SPX_D)
 
 #if SPX_TREE_HEIGHT * SPX_D != SPX_FULL_HEIGHT
-    #error SPX_D should always divide SPX_FULL_HEIGHT
+#error SPX_D should always divide SPX_FULL_HEIGHT
 #endif /* if SPX_TREE_HEIGHT * SPX_D != SPX_FULL_HEIGHT */
 
 /* FORS parameters. */
@@ -135,8 +134,7 @@
 #define SPX_FORS_PK_BYTES SPX_N
 
 /* Resulting SPX sizes. */
-#define SPX_BYTES (SPX_N + SPX_FORS_BYTES + SPX_D * SPX_WOTS_BYTES + \
-		   SPX_FULL_HEIGHT * SPX_N)
+#define SPX_BYTES (SPX_N + SPX_FORS_BYTES + SPX_D * SPX_WOTS_BYTES + SPX_FULL_HEIGHT * SPX_N)
 #define SPX_PK_BYTES (2 * SPX_N)
 #define SPX_SK_BYTES (2 * SPX_N + SPX_PK_BYTES)
 
