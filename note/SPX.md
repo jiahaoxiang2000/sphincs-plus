@@ -4,6 +4,8 @@ Let us to improve the performance of SPHINCS+ by using the parallelism technique
 
 ## Throughput
 
+Let us to improve the throughput by key point mind **dynamic parallelism**, we 
+
 ## Latency
 
 The maximin latency usually talked is the time to sign a message. As propose on the **CUSPX**, it used the three levels of parallelism to reduce the latency. The first level is the _tree-based parallelism_, the second level is the _node-based parallelism_, and the third level is the _WOTS-based parallelism_. Addition, we have the fourth level of parallelism, the _hash-based parallelism_. The benchmark of the **CUSPX** is shown in the following:
