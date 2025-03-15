@@ -4,12 +4,12 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "../api.h"
-#include "../common.h"
-#include "../fors.h"
-#include "../params.h"
-#include "../rng.h"
-#include "../wots.h"
+#include "api.h"
+#include "common.h"
+#include "fors.h"
+#include "params.h"
+#include "rng.h"
+#include "wots.h"
 
 #define SPX_MLEN 32
 #define NTESTS 5
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     /* Make stdout buffer more responsive. */
     setbuf(stdout, NULL);
 
-    int num = 70000;
+    int num = 7000;
 
     if (argv[1] != NULL) num = atoi(argv[1]);
 
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
     }
 
     for (int i = 65568; i <= 65568; i += 1024) {
-    // for (int i = 41984; i <= 41984; i += 1024) {
+        // for (int i = 41984; i <= 41984; i += 1024) {
         // 65536 verify error
         double t1, t2, t3;
         g_result = 0;
