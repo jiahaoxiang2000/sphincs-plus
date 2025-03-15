@@ -14,12 +14,11 @@ set(CUDA_SPECIFIC_OPTIONS
 
 function(add_benchmark_target NAME HASH_TYPE SPX_TYPE)
     add_executable(bm-${NAME} 
-        bm_ap.cu
         ${SPHINCS_SOURCES}
     )
     
     # Make sure source files can be found relative to current directory
-    set_source_files_properties(bm_ap.cu PROPERTIES
+    set_source_files_properties(PROPERTIES
         COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}"
     )
     
