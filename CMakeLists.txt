@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.18)
 
 # dependence on our machine, number of cpu cores
 set(CMAKE_BUILD_PARALLEL_LEVEL 30)
-
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # set(CMAKE_CUDA_ARCHITECTURES 89)
 set(CMAKE_CUDA_COMPILER /usr/local/cuda-12.5/bin/nvcc)
