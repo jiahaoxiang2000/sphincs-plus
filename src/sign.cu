@@ -1325,7 +1325,7 @@ int face_mdp_crypto_sign_keypair(u8* pk, u8* sk, u32 num) {
     double result;
     u8 *dev_pk = NULL, *dev_sk = NULL;
     int device = DEVICE_USED;
-    int blocks = 1, threads = 64;
+    int blocks = 1, threads = 512;
     cudaDeviceProp deviceProp;
     int malloc_size;
     int maxblocks, maxallthreads;
