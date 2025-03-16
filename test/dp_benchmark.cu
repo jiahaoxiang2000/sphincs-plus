@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
 
     printf("multi-keypair data parallelism\n");
     printf("number, keypair, sign, verify, keypair per op, Sign per op, verify per op\n");
-    for (int i = 0; i <= 65536; i += 1024) {
+    for (int i = 1024; i <= 65536; i = i * 2) {
         double t1, t2, t3;
         g_result = 0;
         for (int j = 0; j < NTESTS; j++)

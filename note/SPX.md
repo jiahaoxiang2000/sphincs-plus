@@ -8,6 +8,9 @@ Let us to improve the throughput by key point mind **dynamic parallelism**, we m
 
 here is the data parallelism of the **CUSPX**, this way is use the serial version implementation _SPX_ to parallelism signature the message. This way we not see the suit parallelism number.
 
+
+### max thread number parallelism
+
 ```shell
 n = 16, h = 66, d = 22, b = 6, k = 33, w = 16, len = 35
 SLH-DSA-SHA-256-128f
@@ -82,6 +85,14 @@ number, keypair, sign, verify, keypair per op, Sign per op, verify per op
 63488, 140.67, 3891.67, 451.00, 0.0022, 0.0613, 0.0071
 64512, 142.26, 3955.36, 457.54, 0.0022, 0.0613, 0.0071
 65536, 142.93, 3967.49, 460.74, 0.0022, 0.0605, 0.0070
+
+1024, 18.76, 491.92, 52.81, 0.0183, 0.4804, 0.0516
+2048, 18.78, 493.27, 53.64, 0.0092, 0.2409, 0.0262
+4096, 18.87, 497.61, 55.53, 0.0046, 0.1215, 0.0136
+8192, 21.06, 550.72, 62.94, 0.0026, 0.0672, 0.0077
+16384, 35.67, 990.66, 115.19, 0.0022, 0.0605, 0.0070
+32768, 71.26, 1980.49, 229.81, 0.0022, 0.0604, 0.0070
+65536, 142.64, 3960.43, 459.02, 0.0022, 0.0604, 0.0070
 ```
 
 ## Latency
