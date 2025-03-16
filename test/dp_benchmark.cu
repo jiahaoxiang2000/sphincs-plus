@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
     /* Make stdout buffer more responsive. */
     setbuf(stdout, NULL);
 
-    int num = 7000;
+    int num = 65536;
 
     if (argv[1] != NULL) num = atoi(argv[1]);
 
@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
     */
 
     printf("multi-keypair data parallelism\n");
-    printf("number, keypair, sign, verify,Sign per op\n");
+    printf("number, keypair, sign, verify, keypair per op, Sign per op, verify per op\n");
     for (int i = 0; i <= 65536; i += 1024) {
         double t1, t2, t3;
         g_result = 0;
@@ -106,103 +106,104 @@ int main(int argc, char** argv) {
         for (int j = 0; j < NTESTS; j++)
             face_mdp_crypto_sign_open(mout, &mlen, sm, smlen, pk, i);
         t3 = g_result / NTESTS / 1e3;
-        printf("%d, %.2lf, %.2lf, %.2lf, %.4lf\n", i, t1, t2, t3, t2 / i);
+        printf("%d, %.2lf, %.2lf, %.2lf, %.4lf, %.4lf, %.4lf\n", i, t1, t2, t3, t1 / i, t2 / i,
+               t3 / i);
     }
 
-    printf("multi-stream multi-keypair data parallelism\n");
+    // printf("multi-stream multi-keypair data parallelism\n");
 
-    for (int i = 0; i < 65536; i += 1024) {
-        double t1, t2, t3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_ms_mdp_crypto_sign_keypair(pk, sk, i);
-        t1 = g_result / NTESTS / 1e3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_ms_mdp_crypto_sign(sm, &smlen, m, SPX_MLEN, sk, i);
-        t2 = g_result / NTESTS / 1e3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_ms_mdp_crypto_sign_open(mout, &mlen, sm, smlen, pk, i);
-        t3 = g_result / NTESTS / 1e3;
-        printf("i = %d %10.2lf %10.2lf %10.2lf\n", i, t1, t2, t3);
-    }
+    // for (int i = 0; i < 65536; i += 1024) {
+    //     double t1, t2, t3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_ms_mdp_crypto_sign_keypair(pk, sk, i);
+    //     t1 = g_result / NTESTS / 1e3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_ms_mdp_crypto_sign(sm, &smlen, m, SPX_MLEN, sk, i);
+    //     t2 = g_result / NTESTS / 1e3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_ms_mdp_crypto_sign_open(mout, &mlen, sm, smlen, pk, i);
+    //     t3 = g_result / NTESTS / 1e3;
+    //     printf("i = %d %10.2lf %10.2lf %10.2lf\n", i, t1, t2, t3);
+    // }
 
-    for (int i = 65568; i <= 65568; i += 1024) {
-        // for (int i = 41984; i <= 41984; i += 1024) {
-        // 65536 verify error
-        double t1, t2, t3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_ms_mdp_crypto_sign_keypair(pk, sk, i);
-        t1 = g_result / NTESTS / 1e3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_ms_mdp_crypto_sign(sm, &smlen, m, SPX_MLEN, sk, i);
-        t2 = g_result / NTESTS / 1e3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_ms_mdp_crypto_sign_open(mout, &mlen, sm, smlen, pk, i);
-        t3 = g_result / NTESTS / 1e3;
-        printf("i = %d %10.2lf %10.2lf %10.2lf\n", i, t1, t2, t3);
-    }
+    // for (int i = 65568; i <= 65568; i += 1024) {
+    //     // for (int i = 41984; i <= 41984; i += 1024) {
+    //     // 65536 verify error
+    //     double t1, t2, t3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_ms_mdp_crypto_sign_keypair(pk, sk, i);
+    //     t1 = g_result / NTESTS / 1e3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_ms_mdp_crypto_sign(sm, &smlen, m, SPX_MLEN, sk, i);
+    //     t2 = g_result / NTESTS / 1e3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_ms_mdp_crypto_sign_open(mout, &mlen, sm, smlen, pk, i);
+    //     t3 = g_result / NTESTS / 1e3;
+    //     printf("i = %d %10.2lf %10.2lf %10.2lf\n", i, t1, t2, t3);
+    // }
 
-    printf("multi-gpu multi-keypair data parallelism\n");
+    // printf("multi-gpu multi-keypair data parallelism\n");
 
-    for (int i = 0; i <= 65536; i += 1024) {
-        // int i = 1024;
-        double t1, t2, t3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_mgpu_mdp_crypto_sign_keypair(pk, sk, i);
-        t1 = g_result / NTESTS / 1e3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_mgpu_mdp_crypto_sign(sm, &smlen, m, SPX_MLEN, sk, i);
-        t2 = g_result / NTESTS / 1e3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_mgpu_mdp_crypto_sign_open(mout, &mlen, sm, smlen, pk, i);
-        t3 = g_result / NTESTS / 1e3;
-        printf("i = %d %10.2lf %10.2lf %10.2lf\n", i, t1, t2, t3);
-    }
+    // for (int i = 0; i <= 65536; i += 1024) {
+    //     // int i = 1024;
+    //     double t1, t2, t3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_mgpu_mdp_crypto_sign_keypair(pk, sk, i);
+    //     t1 = g_result / NTESTS / 1e3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_mgpu_mdp_crypto_sign(sm, &smlen, m, SPX_MLEN, sk, i);
+    //     t2 = g_result / NTESTS / 1e3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_mgpu_mdp_crypto_sign_open(mout, &mlen, sm, smlen, pk, i);
+    //     t3 = g_result / NTESTS / 1e3;
+    //     printf("i = %d %10.2lf %10.2lf %10.2lf\n", i, t1, t2, t3);
+    // }
 
-    printf("multi-gpu multi-stream multi-keypair data parallelism\n");
+    // printf("multi-gpu multi-stream multi-keypair data parallelism\n");
 
-    for (int i = 0; i < 65536; i += 1024) {
-        double t1, t2, t3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_mgpu_ms_mdp_crypto_sign_keypair(pk, sk, i);
-        t1 = g_result / NTESTS / 1e3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_mgpu_ms_mdp_crypto_sign(sm, &smlen, m, SPX_MLEN, sk, i);
-        t2 = g_result / NTESTS / 1e3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_mgpu_ms_mdp_crypto_sign_open(mout, &mlen, sm, smlen, pk, i);
-        t3 = g_result / NTESTS / 1e3;
-        printf("i = %d %10.2lf %10.2lf %10.2lf\n", i, t1, t2, t3);
-    }
+    // for (int i = 0; i < 65536; i += 1024) {
+    //     double t1, t2, t3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_mgpu_ms_mdp_crypto_sign_keypair(pk, sk, i);
+    //     t1 = g_result / NTESTS / 1e3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_mgpu_ms_mdp_crypto_sign(sm, &smlen, m, SPX_MLEN, sk, i);
+    //     t2 = g_result / NTESTS / 1e3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_mgpu_ms_mdp_crypto_sign_open(mout, &mlen, sm, smlen, pk, i);
+    //     t3 = g_result / NTESTS / 1e3;
+    //     printf("i = %d %10.2lf %10.2lf %10.2lf\n", i, t1, t2, t3);
+    // }
 
-    for (int i = 65568; i <= 65568; i += 1024) {
-        // 65536 verify error
-        double t1, t2, t3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_mgpu_ms_mdp_crypto_sign_keypair(pk, sk, i);
-        t1 = g_result / NTESTS / 1e3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_mgpu_ms_mdp_crypto_sign(sm, &smlen, m, SPX_MLEN, sk, i);
-        t2 = g_result / NTESTS / 1e3;
-        g_result = 0;
-        for (int j = 0; j < NTESTS; j++)
-            face_mgpu_ms_mdp_crypto_sign_open(mout, &mlen, sm, smlen, pk, i);
-        t3 = g_result / NTESTS / 1e3;
-        printf("i = %d %10.2lf %10.2lf %10.2lf\n", i, t1, t2, t3);
-    }
+    // for (int i = 65568; i <= 65568; i += 1024) {
+    //     // 65536 verify error
+    //     double t1, t2, t3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_mgpu_ms_mdp_crypto_sign_keypair(pk, sk, i);
+    //     t1 = g_result / NTESTS / 1e3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_mgpu_ms_mdp_crypto_sign(sm, &smlen, m, SPX_MLEN, sk, i);
+    //     t2 = g_result / NTESTS / 1e3;
+    //     g_result = 0;
+    //     for (int j = 0; j < NTESTS; j++)
+    //         face_mgpu_ms_mdp_crypto_sign_open(mout, &mlen, sm, smlen, pk, i);
+    //     t3 = g_result / NTESTS / 1e3;
+    //     printf("i = %d %10.2lf %10.2lf %10.2lf\n", i, t1, t2, t3);
+    // }
 
     CHECK(cudaFreeHost(pk));
     CHECK(cudaFreeHost(sk));
