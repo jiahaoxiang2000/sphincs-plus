@@ -1325,7 +1325,7 @@ int face_mdp_crypto_sign_keypair(u8* pk, u8* sk, u32 num) {
     double result;
     u8 *dev_pk = NULL, *dev_sk = NULL;
     int device = DEVICE_USED;
-    int blocks = 1, threads = 32;
+    int blocks = 1, threads = 256;
     cudaDeviceProp deviceProp;
     int malloc_size;
     int maxblocks, maxallthreads;
@@ -1334,9 +1334,12 @@ int face_mdp_crypto_sign_keypair(u8* pk, u8* sk, u32 num) {
     cudaGetDeviceProperties(&deviceProp, device);
 
 #ifdef KEYGEN_SUITBLE_BLOCK
-    maxallthreads
-        = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor) * deviceProp.multiProcessorCount;
-    maxblocks = maxallthreads / threads;
+    // maxallthreads
+    // = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor) * deviceProp.multiProcessorCount;
+
+    // maxblocks = maxallthreads / threads;
+    maxblocks = 128;
+    maxallthreads = maxblocks * threads;
     if (maxallthreads % threads != 0) printf("wrong in dp threads\n");
 #else  // ifdef KEYGEN_SUITBLE_BLOCK
     int numBlocksPerSm;

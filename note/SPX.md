@@ -95,6 +95,27 @@ number, keypair, sign, verify, keypair per op, Sign per op, verify per op
 65536, 142.64, 3960.43, 459.02, 0.0022, 0.0604, 0.0070
 ```
 
+here we change the block*thread number for the `keypair`, we have the performance improvement. from the 0.0022 to 0.0017. `blocks, threads: 128 256` from the `blocks, threads: 512 32`.
+
+```shell
+n = 16, h = 66, d = 22, b = 6, k = 33, w = 16, len = 35
+SLH-DSA-SHA-256-128f
+num = 65536
+Parameters: n = 16, h = 66, d = 22, a = 6, k = 33, w = 16, len = 35
+warming up 1 iter
+blocks, threads: 128 256
+Running 5 iterations.
+multi-keypair data parallelism
+number, keypair, sign, verify, keypair per op, Sign per op, verify per op
+1024, 26.95, 491.86, 52.81, 0.0263, 0.4803, 0.0516
+2048, 27.13, 492.97, 53.59, 0.0132, 0.2407, 0.0262
+4096, 27.15, 497.21, 55.47, 0.0066, 0.1214, 0.0135
+8192, 27.34, 552.43, 67.35, 0.0033, 0.0674, 0.0082
+16384, 37.19, 992.23, 116.28, 0.0023, 0.0606, 0.0071
+32768, 56.95, 1985.24, 231.24, 0.0017, 0.0606, 0.0071
+65536, 114.10, 3977.45, 460.71, 0.0017, 0.0607, 0.0070
+```
+
 ## Latency
 
 The maximin latency usually talked is the time to sign a message. As propose on the **CUSPX**, it used the three levels of parallelism to reduce the latency. The first level is the _tree-based parallelism_, the second level is the _node-based parallelism_, and the third level is the _WOTS-based parallelism_. Addition, we have the fourth level of parallelism, the _hash-based parallelism_. The benchmark of the **CUSPX** is shown in the following:
