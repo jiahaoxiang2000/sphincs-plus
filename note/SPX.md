@@ -4,10 +4,9 @@ Let us to improve the performance of SPHINCS+ by using the parallelism technique
 
 ## Throughput
 
-Let us to improve the throughput by key point mind **dynamic parallelism**, we main idea is the every kernel function $g_i$ if we use the parallelism number $t_i$, it not means the $t_i$ to the max CUDA thread number, e.g the RTX-4090 have 128sm*1024 threads, the function get the maximize performance.
+Let us to improve the throughput by key point mind **dynamic parallelism**, we main idea is the every kernel function $g_i$ if we use the parallelism number $t_i$, it not means the $t_i$ to the max CUDA thread number, e.g the RTX-4090 have 128sm\*1024 threads, the function get the maximize performance. Here we use the precomputed thread number to maximize efficiency.
 
-here is the data parallelism of the **CUSPX**, this way is use the serial version implementation _SPX_ to parallelism signature the message. This way we not see the suit parallelism number.
-
+Here is the data parallelism of the **CUSPX**, this way is use the serial version implementation _SPX_ to parallelism signature the message. This way we not see the suit parallelism number.
 
 ### max thread number parallelism
 
@@ -95,7 +94,7 @@ number, keypair, sign, verify, keypair per op, Sign per op, verify per op
 65536, 142.64, 3960.43, 459.02, 0.0022, 0.0604, 0.0070
 ```
 
-here we change the block*thread number for the `keypair`, we have the performance improvement. from the 0.0022 to 0.0017. `blocks, threads: 128 256` from the `blocks, threads: 512 32`.
+here we change the block\*thread number for the `keypair`, we have the performance improvement. from the 0.0022 to 0.0017. `blocks, threads: 128 256` from the `blocks, threads: 512 32`.
 
 ```shell
 n = 16, h = 66, d = 22, b = 6, k = 33, w = 16, len = 35
@@ -138,7 +137,7 @@ number, keypair, sign, verify, keypair per op, Sign per op, verify per op
 
 for max the thread number, we use the `blocks, threads: 128 512`, the performance is 0.0018.
 
-```shell 
+```shell
 n = 16, h = 66, d = 22, b = 6, k = 33, w = 16, len = 35
 SLH-DSA-SHA-256-128f
 num = 65536
@@ -191,23 +190,23 @@ Tree hash parallelism is a critical optimization technique in SPHINCS+. The rece
 
 2. **Memory Access Pattern Optimization**:
 
-    - Implementing coalesced memory access patterns for WOTS chains
-    - Direct access optimizations for thash input
-    - Minimizing redundant memory operations during tree traversal
+   - Implementing coalesced memory access patterns for WOTS chains
+   - Direct access optimizations for thash input
+   - Minimizing redundant memory operations during tree traversal
 
 3. **Thread Synchronization Reduction**:
 
-    - Consolidating synchronization points to minimize thread waiting time
-    - Using a single sync point between tree levels instead of multiple syncs
+   - Consolidating synchronization points to minimize thread waiting time
+   - Using a single sync point between tree levels instead of multiple syncs
 
 4. **Efficient Workload Distribution**:
 
-    - Dynamic thread allocation based on available resources
-    - Optimized stride patterns for processing multiple WOTS chains per thread
+   - Dynamic thread allocation based on available resources
+   - Optimized stride patterns for processing multiple WOTS chains per thread
 
 5. **Computation Elimination**:
-    - Pre-computing leaf and chain indices to avoid redundant calculations
-    - Setting addressing components once per operation
-    - Eliminating unnecessary temporary buffers
+   - Pre-computing leaf and chain indices to avoid redundant calculations
+   - Setting addressing components once per operation
+   - Eliminating unnecessary temporary buffers
 
 These optimizations collectively demonstrate how tree-based parallelism can be further enhanced through careful memory management and thread coordination, resulting in a 10.9% performance improvement for the treehash operation.
