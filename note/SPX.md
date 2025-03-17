@@ -6,9 +6,40 @@ Let us to improve the performance of SPHINCS+ by using the parallelism technique
 
 Let us to improve the throughput by key point mind **dynamic parallelism**, we main idea is the every kernel function $g_i$ if we use the parallelism number $t_i$, it not means the $t_i$ to the max CUDA thread number, e.g the RTX-4090 have 128sm\*1024 threads, the function get the maximize performance. Here we use the precomputed thread number to maximize efficiency.
 
-Here is the data parallelism of the **CUSPX**, this way is use the serial version implementation _SPX_ to parallelism signature the message. This way we not see the suit parallelism number.
+### theory analysis for the parallelism
+
+First axiom: the parallelism number $t_i$ is the max CUDA thread number, the performance is the best for the function $g_i$. then we know the signature process including the public key generation, signing, and verifying. Those processes need serial run the function $g_i$. Not the optimal approach is use the parallelism number $t_i$ to the max CUDA thread number.
+The performance is not the best for the function $g_i$.
+
+Those have the Adaptive Thread function (AT) $AT:G\rightarrow T$, which maps each function $g_i \in G$ to its optimal thread count $t_i \in T$.
+
+To accurately define this mapping, we can approach it through empirical performance modeling:
+
+1. **Empirical Performance Model**: For each function $g_i$, we model execution time as:
+
+   $T(g_i, t) = \alpha_i + \frac{\beta_i}{t} + \gamma_i \cdot t$
+
+   Where:
+
+   - $\alpha_i$ represents fixed overhead cost
+   - $\frac{\beta_i}{t}$ captures the parallel speedup component
+   - $\gamma_i \cdot t$ models thread management overhead
+   - $t$ is the thread count
+
+2. **Parameter Estimation**: We can estimate $\alpha_i$, $\beta_i$, and $\gamma_i$ by running benchmarks with varying thread counts and performing regression analysis.
+
+3. **Optimal Thread Count**: The optimal thread count $t_i^*$ for function $g_i$ can be derived by finding the minimum of $T(g_i, t)$:
+
+   $t_i^* = \sqrt{\frac{\beta_i}{\gamma_i}}$
+
+4. **Implementation Strategy**: For practical implementation, we can:
+   - Perform offline profiling for each key function
+   - Build a lookup table mapping functions to their optimal thread counts
+   - Apply dynamic thread adjustment based on runtime conditions
 
 ### max thread number parallelism
+
+Here is the data parallelism of the **CUSPX**, this way is use the serial version implementation _SPX_ to parallelism signature the message. This way we not see the suit parallelism number.
 
 ```shell
 n = 16, h = 66, d = 22, b = 6, k = 33, w = 16, len = 35
