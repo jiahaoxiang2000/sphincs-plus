@@ -107,7 +107,8 @@ int face_ap_crypto_sign_12(unsigned char* sm, unsigned long long* smlen, const u
 int face_ap_crypto_sign_123(unsigned char* sm, unsigned long long* smlen, const unsigned char* m,
                             unsigned long long mlen, const unsigned char* sk);
 int face_mdp_crypto_sign(unsigned char* sm, unsigned long long* smlen, const unsigned char* m,
-                         unsigned long long mlen, const unsigned char* sk, unsigned int dp_num);
+                         unsigned long long mlen, const unsigned char* sk, unsigned int dp_num,
+                         unsigned int blocks, unsigned int threads);
 int face_mgpu_mdp_crypto_sign(unsigned char* sm, unsigned long long* smlen, const unsigned char* m,
                               unsigned long long mlen, const unsigned char* sk,
                               unsigned int dp_num);
