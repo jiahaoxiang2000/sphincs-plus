@@ -70,17 +70,43 @@ int main(int argc, char** argv) {
     }
     printf("Running %d iterations.\n", NTESTS);
 
-    printf("multi-keypair data parallelism\n");
-    printf("number, keypair, sign, verify, keypair per op, Sign per op, verify per op\n");
-    for (int i = 1024; i <= 65536; i = i * 2) {
-        double t1, t2, t3;
+    // Test with fixed number of keypairs (4096) and different block/thread configurations
+    int test_num = 32768;
+
+    // Test different block and thread configurations
+    printf("multi-keypair data parallelism with different configurations on %d number task\n",
+           test_num);
+    printf("blocks, threads, time(ms), keypair per op(ms)\n");
+
+    // Test different thread counts
+    int block_counts[] = {64, 128};
+    int thread_counts[] = {128, 256, 512};
+
+    for (int thread_idx = 0; thread_idx < sizeof(thread_counts) / sizeof(int); thread_idx++) {
+        int threads = thread_counts[thread_idx];
+
+        for (int block_idx = 0; block_idx < sizeof(block_counts) / sizeof(int); block_idx++) {
+            int blocks = block_counts[block_idx];
+
+            g_result = 0;
+            for (int j = 0; j < NTESTS; j++) {
+                face_mdp_crypto_sign_keypair(pk, sk, test_num, blocks, threads);
+            }
+            double avg_time = g_result / NTESTS / 1e3; // convert to ms
+            printf("%d, %d, %.2lf, %.4lf\n", blocks, threads, avg_time, avg_time / test_num);
+        }
+    }
+
+    // Original scaling test
+    printf("\nmulti-keypair data parallelism scaling test on 512*32 block*thread\n");
+    printf("number, keypair(ms), keypair per op(ms)\n");
+    for (int i = 1024; i <= 65536; i *= 2) {
+        double t1;
         g_result = 0;
         for (int j = 0; j < NTESTS; j++)
             face_mdp_crypto_sign_keypair(pk, sk, i, 512, 32);
         t1 = g_result / NTESTS / 1e3;
-        g_result = 0;
-        printf("%d, %.2lf, %.2lf, %.2lf, %.4lf, %.4lf, %.4lf\n", i, t1, t2, t3, t1 / i, t2 / i,
-               t3 / i);
+        printf("%d, %.2lf, %.4lf\n", i, t1, t1 / i);
     }
 
     CHECK(cudaFreeHost(pk));

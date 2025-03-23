@@ -58,7 +58,7 @@ int face_ap_treehash_wots_2(uint32_t loop_num, uint32_t blocks, uint32_t threads
 int face_ap_treehash_wots_23(uint32_t loop_num, uint32_t blocks, uint32_t threads,
                              uint32_t maxallthreads);
 int face_mdp_crypto_sign_keypair(unsigned char* pk, unsigned char* sk, unsigned int num,
-                                 unsigned int b, unsigned int t);
+                                 unsigned int blocks, unsigned int threads);
 int face_mgpu_mdp_crypto_sign_keypair(unsigned char* pk, unsigned char* sk, unsigned int num);
 int face_ms_mdp_crypto_sign_keypair(unsigned char* pk, unsigned char* sk, unsigned int num);
 int face_mgpu_ms_mdp_crypto_sign_keypair(unsigned char* pk, unsigned char* sk, unsigned int num);
