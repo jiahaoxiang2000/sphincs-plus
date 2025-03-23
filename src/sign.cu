@@ -1319,13 +1319,13 @@ int face_ap_treehash_wots_23(uint32_t loop_num, uint32_t blocks, uint32_t thread
     return 0;
 }
 
-int face_mdp_crypto_sign_keypair(u8* pk, u8* sk, u32 num) {
+int face_mdp_crypto_sign_keypair(u8* pk, u8* sk, u32 num, u32 b, u32 t) {
     struct timespec start, stop;
     struct timespec b2, e2;
     double result;
     u8 *dev_pk = NULL, *dev_sk = NULL;
     int device = DEVICE_USED;
-    int blocks = 1, threads = 512;
+    int blocks = 1, threads = t;
     cudaDeviceProp deviceProp;
     int malloc_size;
     int maxblocks, maxallthreads;
@@ -1338,7 +1338,7 @@ int face_mdp_crypto_sign_keypair(u8* pk, u8* sk, u32 num) {
     // = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor) * deviceProp.multiProcessorCount;
 
     // maxblocks = maxallthreads / threads;
-    maxblocks = 128;
+    maxblocks = b;
     maxallthreads = maxblocks * threads;
     if (maxallthreads % threads != 0) printf("wrong in dp threads\n");
 #else  // ifdef KEYGEN_SUITBLE_BLOCK
