@@ -76,11 +76,11 @@ int main(int argc, char** argv) {
     // Test different block and thread configurations
     printf("multi-keypair data parallelism with different configurations on %d number task\n",
            test_num);
-    printf("blocks, threads, time(ms), keypair per op(ms)\n");
+    printf("blocks, threads, time(ms), per op(ms)\n");
 
     // Test different thread counts
-    int block_counts[] = {64, 128};
-    int thread_counts[] = {128, 256, 512};
+    int block_counts[] = {32, 64, 96, 128, 160, 192, 224, 256};
+    int thread_counts[] = {64, 96, 128, 160, 192, 224, 256, 320, 384, 512};
 
     for (int thread_idx = 0; thread_idx < sizeof(thread_counts) / sizeof(int); thread_idx++) {
         int threads = thread_counts[thread_idx];
