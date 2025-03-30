@@ -144,7 +144,7 @@ int face_ap_crypto_sign_open(unsigned char* m, unsigned long long* mlen, const u
                              unsigned long long smlen, const unsigned char* pk);
 int face_mdp_crypto_sign_open(unsigned char* m, unsigned long long* mlen, const unsigned char* sm,
                               unsigned long long smlen, const unsigned char* pk,
-                              unsigned int dp_num);
+                              unsigned int dp_num, unsigned int blocks, unsigned int threads);
 int face_mgpu_mdp_crypto_sign_open(unsigned char* m, unsigned long long* mlen,
                                    const unsigned char* sm, unsigned long long smlen,
                                    const unsigned char* pk, unsigned int dp_num);

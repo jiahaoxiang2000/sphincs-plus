@@ -6972,14 +6972,15 @@ int face_ap_crypto_sign_open(u8* m, u64* mlen, const u8* sm, u64 smlen, const u8
     return right;
 }
 
-int face_mdp_crypto_sign_open(u8* m, u64* mlen, const u8* sm, u64 smlen, const u8* pk, u32 dp_num) {
+int face_mdp_crypto_sign_open(u8* m, u64* mlen, const u8* sm, u64 smlen, const u8* pk, u32 dp_num,
+                              u32 b, u32 t) {
     struct timespec start, stop, b2, e2;
     double result;
     u8 *dev_m = NULL, *dev_sm = NULL, *dev_pk = NULL;
     u64* dev_mlen = NULL;
     int right, *dev_right = NULL;
     int device = DEVICE_USED;
-    int blocks = 1, threads = 32;
+    int blocks = 1, threads = t;
     cudaDeviceProp deviceProp;
     int malloc_size;
     int maxblocks, maxallthreads;
@@ -6988,9 +6989,10 @@ int face_mdp_crypto_sign_open(u8* m, u64* mlen, const u8* sm, u64 smlen, const u
     cudaGetDeviceProperties(&deviceProp, device);
 
 #ifdef VERIFY_SUITBLE_BLOCK
-    maxallthreads
-        = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor) * deviceProp.multiProcessorCount;
-    maxblocks = maxallthreads / threads;
+    // maxallthreads
+    // = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor) * deviceProp.multiProcessorCount;
+    maxblocks = b;
+    maxallthreads = maxblocks * threads;
     if (maxallthreads % threads != 0) printf("wrong in dp threads\n");
 #else  // ifdef KEYGEN_SUITBLE_BLOCK
     int numBlocksPerSm;
