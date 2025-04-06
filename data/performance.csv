@@ -1,0 +1,3 @@
+Configuration,KG Latency (ms),Sign Latency (ms),Verify Latency (ms),KG Throughput (tasks/sec),Sign Throughput (tasks/sec),Verify Throughput (tasks/sec)
+Original (512x32),22.82,609.03,72.51,1435690.10,53803.91,451883.20
+Optimized,20.64,526.48,65.24,1587849.16,62239.22,502243.35

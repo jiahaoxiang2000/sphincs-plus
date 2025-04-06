@@ -61,6 +61,11 @@ We compared our Adaptive Thread Allocation (ATA) approach against three baseline
 - **Fixed Optimal**: Using a single thread count optimized for average performance
 - **Heuristic-based (ATA)**: Using a simple heuristic based on operation complexity
 
+basic performance metrics for each approach are shown in the table below:
+
+Latency (ms) KG Sign Verify
+Throughput (tasks/sec) KG Sign Verify
+
 TODO: test
 
 ### Scalability analysis
