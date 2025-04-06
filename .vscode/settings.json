@@ -4,6 +4,7 @@
     "bijective",
     "CUDA",
     "fors",
+    "keypair",
     "sphincs",
     "treehash"
   ],
