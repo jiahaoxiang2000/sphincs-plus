@@ -81,56 +81,8 @@ function(add_test_target NAME TYPE)
 
 endfunction()
 
-# SHA256 variants
-add_benchmark_target("sha256_128s" SHA256 SPX_128S)
-add_benchmark_target("sha256_128f" SHA256 SPX_128F)
-add_benchmark_target("sha256_192s" SHA256 SPX_192S)
-add_benchmark_target("sha256_192f" SHA256 SPX_192F)
-add_benchmark_target("sha256_256s" SHA256 SPX_256S)
-add_benchmark_target("sha256_256f" SHA256 SPX_256F)
 
-# SHAKE256 variants
-add_benchmark_target("shake256_128s" SHAKE256 SPX_128S)
-add_benchmark_target("shake256_128f" SHAKE256 SPX_128F)
-add_benchmark_target("shake256_192s" SHAKE256 SPX_192S)
-add_benchmark_target("shake256_192f" SHAKE256 SPX_192F)
-add_benchmark_target("shake256_256s" SHAKE256 SPX_256S)
-add_benchmark_target("shake256_256f" SHAKE256 SPX_256F)
 
-# Group targets matching Makefile structure
-add_custom_target(sha256 DEPENDS
-    bm-sha256_128s bm-sha256_128f
-    bm-sha256_192s bm-sha256_192f
-    bm-sha256_256s bm-sha256_256f
-)
-
-add_custom_target(shake256 DEPENDS
-    bm-shake256_128s bm-shake256_128f
-    bm-shake256_192s bm-shake256_192f
-    bm-shake256_256s bm-shake256_256f
-)
-
-# Target to run all benchmarks
-add_custom_target(benchmark_all DEPENDS sha256 shake256)
-
-# Add record target similar to Makefile
-add_custom_target(record
-    COMMAND ${CMAKE_COMMAND} -E echo "Recording benchmarks to 1.txt"
-    COMMAND ${CMAKE_COMMAND} -E rm -f 1.txt
-    COMMAND ${CMAKE_COMMAND} -E touch 1.txt
-    COMMAND ${CMAKE_COMMAND} -E echo "bm-sha256_128s" >> 1.txt
-    COMMAND $<TARGET_FILE:bm-sha256_128s> >> 1.txt
-    # ... similar commands for other variants ...
-    DEPENDS benchmark_all
-)
-
-# Add test targets
-add_test_target("test" "sha256")
-add_test_target("test" "wots")
-add_test_target("test" "fors")
-add_test_target("test" "spx")
-add_test_target("test" "ap_spx")
-add_test_target("test" "ap_benchmark")
 add_test_target("test" "dp_benchmark")
-add_test_target("test" "dp_spx")
-add_test_target("test" "hp_spx")
+add_test_target("test" "ata")
+
