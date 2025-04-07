@@ -36,13 +36,14 @@ def performance_model(t, alpha, beta, gamma):
     return alpha + beta / t + gamma * t
 
 
-def calculate_optimal_threads(csv_file):
+def calculate_optimal_threads_by_function(csv_file, function_name):
     """
-    Calculate optimal thread configurations from benchmark data.
+    Calculate optimal thread configurations from benchmark data for a specific function.
 
     Args:
         csv_file: Path to CSV file with benchmark data
-                 Expected columns: "blocks", "threads", "time(ms)"
+                 Expected columns: "function", "blocks", "threads", "time(ms)", "per_op(ms)"
+        function_name: Name of the function to analyze
 
     Returns:
         tuple: (model_params, optimal_thread_count, best_config, optimal_configs)
@@ -57,15 +58,21 @@ def calculate_optimal_threads(csv_file):
     # Clean column names by removing whitespace
     df.columns = df.columns.str.strip()
 
+    # Filter data for the specified function
+    function_df = df[df["function"] == function_name]
+
+    if function_df.empty:
+        raise ValueError(f"No data found for function '{function_name}'")
+
     # Calculate total threads
-    df["total_threads"] = df["blocks"] * df["threads"]
+    function_df["total_threads"] = function_df["blocks"] * function_df["threads"]
 
     # Find the best measured configuration
-    best_config = df.loc[df["time(ms)"].idxmin()]
+    best_config = function_df.loc[function_df["time(ms)"].idxmin()]
 
     # Extract data for model fitting
-    t_values = df["total_threads"].values
-    times = df["time(ms)"].values
+    t_values = function_df["total_threads"].values
+    times = function_df["time(ms)"].values
 
     # Initial parameter guesses
     p0 = [50, 5000, 0.0001]
@@ -79,7 +86,7 @@ def calculate_optimal_threads(csv_file):
         t_optimal = np.sqrt(beta / gamma)
 
         # Calculate optimal block count for each thread size
-        thread_sizes = sorted(df["threads"].unique())
+        thread_sizes = sorted(function_df["threads"].unique())
         optimal_configs = {}
 
         for thread_size in thread_sizes:
@@ -95,26 +102,26 @@ def calculate_optimal_threads(csv_file):
         return (params, t_optimal, best_config, optimal_configs)
 
     except RuntimeError as e:
-        print(f"Error fitting model: {e}")
+        print(f"Error fitting model for {function_name}: {e}")
         return None
 
 
-def print_results(results, file_name):
+def print_results_by_function(results, function_name):
     """
-    Print the results of the thread optimization.
+    Print the results of the thread optimization for a specific function.
 
     Args:
-        results: Tuple returned by calculate_optimal_threads
-        file_name: Name of the benchmark file (for reporting)
+        results: Tuple returned by calculate_optimal_threads_by_function
+        function_name: Name of the function analyzed
     """
     if results is None:
-        print("Could not calculate optimization parameters.")
+        print(f"Could not calculate optimization parameters for {function_name}.")
         return
 
     params, t_optimal, best_config, optimal_configs = results
     alpha, beta, gamma = params
 
-    print(f"Results for {file_name}:")
+    print(f"Results for {function_name}:")
     print("=" * 50)
     print(f"Model parameters:")
     print(f"  alpha = {alpha:.4f} (fixed overhead)")
@@ -125,6 +132,7 @@ def print_results(results, file_name):
     print(f"  Blocks: {best_config['blocks']}, Threads: {best_config['threads']}")
     print(f"  Total threads: {best_config['total_threads']}")
     print(f"  Execution time: {best_config['time(ms)']:.2f}ms")
+    print(f"  Per operation: {best_config['per_op(ms)']:.4f}ms")
 
     print("\nOptimal configurations for different thread counts:")
     for thread_size, config in sorted(optimal_configs.items()):
@@ -134,15 +142,12 @@ def print_results(results, file_name):
         print(f"    Estimated time: {config['estimated_time']:.2f}ms")
     print("=" * 50)
 
-    # Get operation name from filename (strip path and extension)
-    operation = file_name.split("/")[-1].split(".")[0]
-
     # Calculate optimal time using the performance model
     optimal_time = performance_model(t_optimal, alpha, beta, gamma)
 
     # Prepare the result row
     result_row = {
-        "operation": operation,
+        "operation": function_name,
         "alpha": alpha,
         "beta": beta,
         "gamma": gamma,
@@ -162,9 +167,9 @@ def print_results(results, file_name):
         df = pd.read_csv(parameter_csv)
 
         # Check if operation already exists
-        if operation in df["operation"].values:
+        if function_name in df["operation"].values:
             # Replace existing row
-            df.loc[df["operation"] == operation] = pd.Series(result_row)
+            df.loc[df["operation"] == function_name] = pd.Series(result_row)
         else:
             # Append new row
             df = pd.concat([df, pd.DataFrame([result_row])], ignore_index=True)
@@ -178,31 +183,66 @@ def print_results(results, file_name):
 
     # Generate CSV output string for display
     csv_output = "operation,alpha,beta,gamma,t_optimal,optimal_time,best_measured_threads,best_measured_time,best_blocks,best_threads\n"
-    csv_output += f"{operation},{alpha},{beta},{gamma},{t_optimal},{optimal_time},{best_config['total_threads']},{best_config['time(ms)']},{best_config['blocks']},{best_config['threads']}"
+    csv_output += f"{function_name},{alpha},{beta},{gamma},{t_optimal},{optimal_time},{best_config['total_threads']},{best_config['time(ms)']},{best_config['blocks']},{best_config['threads']}"
     print("\nCSV Output:")
     print(csv_output)
+
+
+def get_unique_functions(csv_file):
+    """
+    Get list of unique functions from a CSV file.
+
+    Args:
+        csv_file: Path to CSV file with benchmark data
+
+    Returns:
+        list: List of unique function names
+    """
+    try:
+        df = pd.read_csv(csv_file, skipinitialspace=True)
+        return df["function"].unique().tolist()
+    except Exception as e:
+        print(f"Error retrieving functions from {csv_file}: {e}")
+        return []
 
 
 def main():
     """
     Main function to demonstrate usage of the calculator.
     """
-    # List of benchmark files to analyze
-    files = [
-        "../data/128f-kaypair-32768.csv",
-        "../data/128f-sign-32768.csv",
-        "../data/128f-verify-32768.csv",
-    ]
+    # Path to the input CSV file
+    input_file = "../data/128S-SLH-DSA-32768.csv"
 
-    for file_path in files:
-        try:
-            results = calculate_optimal_threads(file_path)
-            print_results(results, file_path)
-            print("\n")
-        except FileNotFoundError:
-            print(f"File not found: {file_path}")
-        except Exception as e:
-            print(f"Error processing {file_path}: {e}")
+    try:
+        # Get unique functions from the CSV
+        functions = get_unique_functions(input_file)
+
+        if not functions:
+            print(f"No function data found in {input_file}")
+            return
+
+        print(
+            f"Found {len(functions)} functions in the input file: {', '.join(functions)}\n"
+        )
+
+        # Process each function
+        for function_name in functions:
+            try:
+                print(f"Processing {function_name}...")
+                results = calculate_optimal_threads_by_function(
+                    input_file, function_name
+                )
+                print_results_by_function(results, function_name)
+                print("\n")
+            except Exception as e:
+                print(f"Error processing {function_name}: {e}")
+
+        print("All functions processed successfully!")
+
+    except FileNotFoundError:
+        print(f"Input file not found: {input_file}")
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":
