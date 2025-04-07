@@ -211,7 +211,7 @@ def main():
     Main function to demonstrate usage of the calculator.
     """
     # Path to the input CSV file
-    input_file = "../data/192F-SLH-DSA-32768.csv"
+    input_file = "../data/192S-SLH-DSA-32768.csv"
 
     try:
         # Get unique functions from the CSV

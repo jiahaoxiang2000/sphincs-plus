@@ -8,8 +8,8 @@
 
 // #define SPX_128S
 // #define SPX_128F
-// #define SPX_192S
-#define SPX_192F
+#define SPX_192S
+// #define SPX_192F
 // #define SPX_256S
 // #define SPX_256F
 
