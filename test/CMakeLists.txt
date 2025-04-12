@@ -81,8 +81,6 @@ function(add_test_target NAME TYPE)
 
 endfunction()
 
-
-
-add_test_target("test" "dp_benchmark")
+add_test_target("test" "throughput")
 add_test_target("test" "ata")
 
