@@ -82,5 +82,5 @@ function(add_test_target NAME TYPE)
 endfunction()
 
 add_test_target("test" "throughput")
-add_test_target("test" "ata")
-
+add_test_target("test" "ATA")
+add_test_target("test" "FLP")
