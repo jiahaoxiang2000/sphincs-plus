@@ -242,6 +242,20 @@ Verifying 2+3 ..     blocks, threads: 1 * 51    all = 51        max = 52224     
 
 here we see the `dev_ap_treehash_wots_2` use the `branch_para` to limit the number of the thread on the nodes merger. so we use the thread to divide two to dynamic strategy to improve the performance, but the a litter improve from the `3.844 ms` to `3.822 ms`, so the main delay is on the other part of the code.
 
+### FLP function level parallelism
+
+here we only to do the fors and wots, the HT tree, we use total subtract the FORS and WOTS.
+
+```shell
+n = 16, h = 66, d = 22, b = 6, k = 33, w = 16, len = 35
+SLH-DSA-SHA-256-128f
+Parameters: n = 16, h = 66, d = 22, a = 6, k = 33, w = 16, len = 35
+Running 10 iterations for each function and reporting average.
+------------------------------------------------------------------
+face_fors_sign latency: 29.371 ms
+face_wots_sign latency: 1.857 ms
+```
+
 ### The tree hash parallelism
 
 Tree hash parallelism is a critical optimization technique in SPHINCS+. The recent optimizations to the `dev_ap_treehash_wots_23` function demonstrate significant performance improvements, reducing execution time from 0.221 ms to 0.197 ms. These optimizations include:
