@@ -4,6 +4,11 @@ At first, This is a implementation of the SPHINCS+ signature scheme in _Python_.
 
 On the next phase, we want the _high parallelism_ of the SPHINCS+ signature scheme to be fully utilized. We will use the **CUDA** to accelerate the SPHINCS+ signature scheme.
 
+## Paper
+
+This repository supports the implementation described in:
+- **Thread-Adaptive: High-Throughput Parallel Architectures of SLH-DSA on GPUs**
+
 ## references
 
 - [Introduction to Post-Quantum Cryptography(PQC) - SPHINCS+](https://hackmd.io/@john03690248/S1ygPfgo5)
